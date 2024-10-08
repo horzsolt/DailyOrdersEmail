@@ -12,6 +12,7 @@ namespace DailyOrdersEmail
         public string MailSecrecy { get; set; } = string.Empty;
         public string MailPassword { get; set; } = string.Empty;
         public string MailSendTo { get; set; } = string.Empty;
+        public string MailSendFrom { get; set; } = string.Empty;
         public string MailSaveToFolder { get; set; } = string.Empty;
         public string MailSelectStatement { get; set; } = string.Empty;
         public int MailRetentionDays { get; set; } = 0;
