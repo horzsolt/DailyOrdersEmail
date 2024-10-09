@@ -110,7 +110,7 @@ namespace DailyOrdersEmail
 
                             if (config.TestMode == true)
                             {
-                                config.LastCheckTime = DateTime.Now.AddHours(-1);
+                                config.LastCheckTime = DateTime.Now.AddHours(-2);
                             }
 
                             log.Debug($"Last check time: {config.LastCheckTime}");
@@ -282,9 +282,9 @@ namespace DailyOrdersEmail
 
         private void AddFooter(StringBuilder htmlBuilder)
         {
-            htmlBuilder.Append("<br><br>");
-            htmlBuilder.Append("<p style='font-family: Arial, sans-serif; font-size: 9px; color: #333;'>");
-            htmlBuilder.Append("<a href='mailto:jane.doe@example.com'>jane.doe@example.com</a> | Írj, ha hibát találsz.<br>");
+            htmlBuilder.Append("<br>");
+            htmlBuilder.Append("<p style='font-family: Arial, sans-serif; font-size: 10px; color: #333;'>");
+            htmlBuilder.Append("Hibabejelentés: <a href='mailto:jane.doe@example.com'>jane.doe@example.com</a><br>");
             htmlBuilder.Append("Ez az üzenet automatikusan generálódott, kérjük ne válaszolj rá.<br>");
             htmlBuilder.Append("</p>");
             htmlBuilder.Append("</html>");
