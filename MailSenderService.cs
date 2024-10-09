@@ -199,7 +199,7 @@ namespace DailyOrdersEmail
 
                     string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
                     string fileName = index + "_" + CID.ToString() + "_" + agentName + "_" + timeStamp + ".html";
-                    string subject = $"Napi rendelési értesítő {CID}, {agentName}-{timeStamp}";
+                    string subject = $"Napi rendelési értesítő {CID}, {agentName}";
 
                     Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
                     SendEmail(htmlBuilder.ToString(), config, subject);
@@ -242,7 +242,13 @@ namespace DailyOrdersEmail
                     htmlBuilder.Append("</table>");
                     htmlBuilder.Append("</html>");
 
-                    Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, index + "_" + CID.ToString() + "_" + agentName + ".html"));
+                    string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
+                    string fileName = index + "_" + CID.ToString() + "_" + agentName + "_" + timeStamp + ".html";
+                    string subject = $"Napi rendelési értesítő {CID}, {agentName}";
+
+                    Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
+                    SendEmail(htmlBuilder.ToString(), config, subject);
+
                     htmlBuilder.Clear();
                 }
 
