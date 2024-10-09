@@ -21,6 +21,7 @@ namespace DailyOrdersEmail
         {
             try
             {
+                log.Debug($"Removing files older than {daysOld} days from: {folderPath}");
 
                 DateTime currentDate = DateTime.Now;
                 string[] files = Directory.GetFiles(folderPath);
