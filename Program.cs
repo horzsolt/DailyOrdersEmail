@@ -1,24 +1,16 @@
 ﻿using log4net;
 using log4net.Config;
-using log4net.Repository.Hierarchy;
 using System;
 using System.Configuration.Install;
-using System.Data;
-using System.Data.SqlClient;
 using System.IO;
-using System.Net;
-using System.Net.Mail;
 using System.Reflection;
 using System.ServiceProcess;
-using System.Text;
 using System.Timers;
 
 namespace DailyOrdersEmail
 {
     class Program
     {
-        private static Timer checkTimer;
-        private static DateTime lastCheckTime;
         private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         static void Main(string[] args)

@@ -82,13 +82,15 @@ namespace DailyOrdersEmail
                                       "Connection Timeout=500;";
 
             log.Debug($"Connection string: {connectionString}");
+            
+            Configuration config = new Configuration();
+            config.TestMode = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VIR_TEST_MODE"));
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
 
                 string query = "SELECT TOP 1 * FROM dbo.DailyOrderMailConfig";
-                Configuration config = new Configuration();
 
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
@@ -105,6 +107,11 @@ namespace DailyOrdersEmail
                             config.MailSelectStatement = reader.IsDBNull(6) ? String.Empty : reader.GetString(6).Trim();
                             config.MailRetentionDays = reader.IsDBNull(7) ? 0 : reader.GetInt32(7);
                             config.MailSendFrom = reader.IsDBNull(8) ? String.Empty : reader.GetString(8).Trim();
+
+                            if (config.TestMode == true)
+                            {
+                                config.LastCheckTime = DateTime.Now.AddHours(-1);
+                            }
 
                             log.Debug($"Last check time: {config.LastCheckTime}");
                             log.Debug($"Select stmt: {config.MailSelectStatement}");
@@ -136,16 +143,23 @@ namespace DailyOrdersEmail
                     }
                 }
 
-                query = "UPDATE dbo.DailyOrderMailConfig SET last_check = @timestamp";
-
-                using (SqlCommand command = new SqlCommand(query, connection))
+                if (config.TestMode == false)
                 {
-                    command.Parameters.AddWithValue("@timestamp", lastRunningTime);
-                    int rowsAffected = command.ExecuteNonQuery();
-                    log.Debug($"Rows affected after updating the lastCheckTime: {rowsAffected}");
-                }
 
-                Util.RemoveOldFiles(config.MailSaveToFolder, 30);
+                    query = "UPDATE dbo.DailyOrderMailConfig SET last_check = @timestamp";
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@timestamp", lastRunningTime);
+                        int rowsAffected = command.ExecuteNonQuery();
+                        log.Debug($"Rows affected after updating the lastCheckTime: {rowsAffected}");
+                    }
+
+                    Util.RemoveOldFiles(config.MailSaveToFolder, 30);
+                } else
+                {
+                    log.Debug("Running in test mode, no changes will be saved to the database.");
+                }
             }
         }
 
@@ -193,9 +207,9 @@ namespace DailyOrdersEmail
                     htmlBuilder.Append($"<td align='right'><b>{sum_Rabatt}</b></td>");
                     htmlBuilder.Append($"<td align='right'><b>{string.Format("{0:C0}", sum_Forgalom)}</b></td>");
                     htmlBuilder.Append("</tr>");
-
                     htmlBuilder.Append("</table>");
-                    htmlBuilder.Append("</html>");
+
+                    AddFooter(htmlBuilder);
 
                     string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
                     string fileName = index + "_" + CID.ToString() + "_" + agentName + "_" + timeStamp + ".html";
@@ -238,9 +252,9 @@ namespace DailyOrdersEmail
                     htmlBuilder.Append($"<td align='right'><b>{sum_Rabatt}</b></td>");
                     htmlBuilder.Append($"<td align='right'><b>{string.Format("{0:C0}", sum_Forgalom)}</b></td>");
                     htmlBuilder.Append("</tr>");
-
                     htmlBuilder.Append("</table>");
-                    htmlBuilder.Append("</html>");
+
+                    AddFooter(htmlBuilder);
 
                     string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
                     string fileName = index + "_" + CID.ToString() + "_" + agentName + "_" + timeStamp + ".html";
@@ -264,6 +278,16 @@ namespace DailyOrdersEmail
                 sum_Rabatt += row.Field<int>("Rabatt");
                 sum_Forgalom += row.Field<double>("Forgalom");
             }
+        }
+
+        private void AddFooter(StringBuilder htmlBuilder)
+        {
+            htmlBuilder.Append("<br><br>");
+            htmlBuilder.Append("<p style='font-family: Arial, sans-serif; font-size: 9px; color: #333;'>");
+            htmlBuilder.Append("<a href='mailto:jane.doe@example.com'>jane.doe@example.com</a> | Írj, ha hibát találsz.<br>");
+            htmlBuilder.Append("Ez az üzenet automatikusan generálódott, kérjük ne válaszolj rá.<br>");
+            htmlBuilder.Append("</p>");
+            htmlBuilder.Append("</html>");
         }
 
         private void AddHeader(StringBuilder htmlBuilder, DataRow row)
@@ -317,6 +341,12 @@ namespace DailyOrdersEmail
 
         private void SendEmail(string htmlContent, Configuration config, string subject)
         {
+            if (config.TestMode == true)
+            {
+                log.Debug("Email sending is disabled in test mode.");
+                return;
+            }
+
             try
             {
                 log.Debug($"Sending email: {subject} using {config.MailServer}:587");

@@ -17,6 +17,7 @@ namespace DailyOrdersEmail
         public string MailSelectStatement { get; set; } = string.Empty;
         public int MailRetentionDays { get; set; } = 0;
         public DateTime LastCheckTime { get; set; } = DateTime.Now;
+        public bool TestMode { get; set; } = true;
     }
 
 }
