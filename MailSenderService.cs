@@ -17,7 +17,7 @@ namespace DailyOrdersEmail
     public class MailSenderService : ServiceBase
     {
         private Timer checkTimer;
-        private DateTime lastRunningTime;
+        private DateTime? lastCheckedTimestamp;
         private readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         public MailSenderService()
         {
@@ -41,7 +41,6 @@ namespace DailyOrdersEmail
         {
             log.Debug("Service OnStart called.");
             checkTimer = new Timer(1800000);
-            //checkTimer = new Timer(300000);
             checkTimer.Elapsed += StartCheck_Scheduled;
             checkTimer.AutoReset = true;
             checkTimer.Enabled = true;
@@ -114,8 +113,6 @@ namespace DailyOrdersEmail
                             }
 
                             log.Debug($"Last check time: {config.LastCheckTime}");
-                            log.Debug($"Select stmt: {config.MailSelectStatement}");
-                            log.Debug($"SaveTo folder: {config.MailSaveToFolder}");
                         }
                         else
                         {
@@ -126,33 +123,40 @@ namespace DailyOrdersEmail
                 }
 
                 query = config.MailSelectStatement;
-                lastRunningTime = DateTime.Now;
-
+                
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.CommandTimeout = 500;
                     command.Parameters.AddWithValue("@timestamp", config.LastCheckTime);
 
-                    log.Debug($"Executing query: {command.CommandText}");
+                    string loggableQuery = query.Replace("@timestamp", $"'{config.LastCheckTime:yyyy-MM-dd HH:mm:ss}'");
+                    log.Debug($"Executing query: {loggableQuery}");
 
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
                         DataTable dataTable = new DataTable();
                         dataTable.Load(reader);
-                        GenerateHtmlEmail(dataTable, config);
+                        lastCheckedTimestamp = GenerateHtmlEmail(dataTable, config);
                     }
                 }
 
                 if (config.TestMode == false)
                 {
-
-                    query = "UPDATE dbo.DailyOrderMailConfig SET last_check = @timestamp";
-
-                    using (SqlCommand command = new SqlCommand(query, connection))
+                    if (lastCheckedTimestamp.HasValue)
                     {
-                        command.Parameters.AddWithValue("@timestamp", lastRunningTime);
-                        int rowsAffected = command.ExecuteNonQuery();
-                        log.Debug($"Rows affected after updating the lastCheckTime: {rowsAffected}");
+                        log.Info($"Updating the lastCheckTime in the database to {lastCheckedTimestamp}");
+
+                        query = "UPDATE dbo.DailyOrderMailConfig SET last_check = @timestamp";
+
+                        using (SqlCommand command = new SqlCommand(query, connection))
+                        {
+                            command.Parameters.AddWithValue("@timestamp", lastCheckedTimestamp);
+                            int rowsAffected = command.ExecuteNonQuery();
+                            log.Debug($"Rows affected after updating the lastCheckTime: {rowsAffected}");
+                        }
+                    } else
+                    {
+                        log.Info("As no new orders found the last_check value has not been changed.");
                     }
 
                     Util.RemoveOldFiles(config.MailSaveToFolder, 30);
@@ -163,13 +167,16 @@ namespace DailyOrdersEmail
             }
         }
 
-        private void GenerateHtmlEmail(DataTable dataTable, Configuration config)
+        private DateTime? GenerateHtmlEmail(DataTable dataTable, Configuration config)
         {
             if (dataTable.Rows.Count == 0)
             {
                 log.Info("No records found.");
-                return;
+                return null;
             }
+
+            DataRow lastRow = dataTable.Rows[dataTable.Rows.Count - 1];
+            DateTime? lastCheckedTimestamp = lastRow["Rogzitve"] != DBNull.Value ? (DateTime?)lastRow["Rogzitve"] : null;
 
             int CID = dataTable.Rows[0].Field<int>("CID");
             string agentName = dataTable.Rows[0].Field<string>("Nev");
@@ -278,14 +285,16 @@ namespace DailyOrdersEmail
                 sum_Rabatt += row.Field<int>("Rabatt");
                 sum_Forgalom += row.Field<double>("Forgalom");
             }
+
+            return lastCheckedTimestamp;
         }
 
         private void AddFooter(StringBuilder htmlBuilder)
         {
             htmlBuilder.Append("<br>");
             htmlBuilder.Append("<p style='font-family: Arial, sans-serif; font-size: 10px; color: #333;'>");
-            htmlBuilder.Append("Hibabejelentés: <a href='mailto:jane.doe@example.com'>jane.doe@example.com</a><br>");
-            htmlBuilder.Append("Ez az üzenet automatikusan generálódott, kérjük ne válaszolj rá.<br>");
+            htmlBuilder.Append("Hibabejelentés, észrevétel, javaslat: <a href='mailto:horzsolt2006@gmail.com'>horzsolt2006@gmail.com</a><br>");
+            htmlBuilder.Append("Ezt az üzenetet a VIR Rendelés Értesítő alkalmazás generálta, kérjük ne válaszolj rá.<br>");
             htmlBuilder.Append("</p>");
             htmlBuilder.Append("</html>");
         }
@@ -309,7 +318,7 @@ namespace DailyOrdersEmail
 
             htmlBuilder.Append("<tr>");
             htmlBuilder.Append($"<td>CID</td>");
-            htmlBuilder.Append($"<td align='right'>{row.Field<int>("CID")}</td>");
+            htmlBuilder.Append($"<td align='left'>{row.Field<int>("CID")}</td>");
             htmlBuilder.Append("</tr>");
 
             htmlBuilder.Append("<tr>");
