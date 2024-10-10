@@ -175,6 +175,7 @@ namespace DailyOrdersEmail
                 return null;
             }
 
+            log.Debug($"Found {dataTable.Rows.Count} records.");
             DataRow lastRow = dataTable.Rows[dataTable.Rows.Count - 1];
             DateTime? lastCheckedTimestamp = lastRow["Rogzitve"] != DBNull.Value ? (DateTime?)lastRow["Rogzitve"] : null;
 
