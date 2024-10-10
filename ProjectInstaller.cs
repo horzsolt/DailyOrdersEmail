@@ -17,7 +17,8 @@ namespace DailyOrdersEmail
 
             // Set the service name and display name
             serviceInstaller.ServiceName = "VIR_DailyOrderEmailService";
-            serviceInstaller.DisplayName = "VIR Napi rendeles email kuldo";
+            serviceInstaller.DisplayName = "VIR Napi rendelés értesités";
+            serviceInstaller.Description = "A VIR napi rendeles email küldö szolgáltatása.";
             serviceInstaller.StartType = ServiceStartMode.Automatic;
 
             // Add the installers to the installer collection
