@@ -38,19 +38,21 @@ namespace DailyOrdersEmail
                             if (reader.Read())
                             {
                                 config.LastCheckTime = reader.IsDBNull(0) ? (DateTime.Now.AddHours(-1)) : reader.GetDateTime(0);
-                                config.MailSelectStatement = reader.IsDBNull(6) ? String.Empty : reader.GetString(6).Trim();
                             }
                         }
                     }
 
-                    query = config.MailSelectStatement;
+                    query = @"select DISTINCT Rogzitve, RendAzon, CID, Nev
+                                FROM [dbo].[v_rendeles_teteles_u2]
+                                WHERE Rogzitve > @timestamp 
+                                AND RepCsop NOT IN ('Colgate', 'Benzinkút')
+                                ORDER BY Rogzitve, Nev, CID";
 
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
                         command.CommandTimeout = 500;
                         command.Parameters.AddWithValue("@timestamp", config.LastCheckTime);
 
-                        //string loggableQuery = query.Replace("@timestamp", $"'{config.LastCheckTime:yyyy-MM-dd HH:mm:ss}'");
                         log.Debug($"-- QueryLogger -- last check time: {config.LastCheckTime:yyyy-MM-dd HH:mm:ss}");
 
                         using (SqlDataReader reader = command.ExecuteReader())

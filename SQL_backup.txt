@@ -9,3 +9,8 @@ SELECT RepCsop, Rogzitve, RendAzon, Rend_Datum, Nev, CID, Ugyfel,
                 FROM [dbo].[v_rendeles_teteles_u2]
                 WHERE Rogzitve > @timestamp AND RepCsop NOT IN ('Colgate', 'Benzinkút')
                 ORDER BY Rogzitve, Nev, CID
+
+select DISTINCT Rogzitve, RendAzon, CID, Nev
+                FROM [dbo].[v_rendeles_teteles_u2]
+                WHERE Rogzitve > '2024-10-10 06:40:00' AND RepCsop NOT IN ('Colgate', 'Benzinkút')
+                ORDER BY Rogzitve, Nev, CID
