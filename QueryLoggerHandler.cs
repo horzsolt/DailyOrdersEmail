@@ -10,7 +10,7 @@ namespace DailyOrdersEmail
 {
     public class QueryLoggerHandler
     {
-        private static readonly ILog log = LogManager.GetLogger("SecondLogger");
+        private static readonly ILog log = LogManager.GetLogger("QueryLogger");
 
         public void QueryLogger_Scheduled(object source, ElapsedEventArgs e)
         {
