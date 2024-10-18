@@ -212,7 +212,7 @@ namespace DailyOrdersEmail
                     log.Debug($"[END]: Add summary for: {CID}, {agentName}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
 
                     htmlBuilder.Append($"<tr>");
-                    htmlBuilder.Append($"<td align='left'>{row["Termek"]}</td>");
+                    htmlBuilder.Append($"<td align='right'>{row["Termek"]}</td>");
                     htmlBuilder.Append($"<td align='right'>{row["Rend_Unit"]} db</td>");
                     htmlBuilder.Append($"<td align='right'>{row["Rabatt"]} db</td>");
                     htmlBuilder.Append($"<td align='right'>{row["Kedv_Sz"]} %</td>");
@@ -247,7 +247,7 @@ namespace DailyOrdersEmail
                 }
 
                 htmlBuilder.Append($"<tr>");
-                htmlBuilder.Append($"<td align='left'>{row["Termek"]}</td>");
+                htmlBuilder.Append($"<td align='right'>{row["Termek"]}</td>");
                 htmlBuilder.Append($"<td align='right'>{row["Rend_Unit"]} db</td>");
                 htmlBuilder.Append($"<td align='right'>{row["Rabatt"]} db</td>");
                 htmlBuilder.Append($"<td align='right'>{row["Kedv_Sz"]} %</td>");
