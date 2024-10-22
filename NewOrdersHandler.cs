@@ -157,11 +157,15 @@ namespace DailyOrdersEmail
             int sum_Rabatt = 0;
             double sum_Forgalom = 0;
 
+            StringBuilder htmlTableBuilder = new StringBuilder();
             StringBuilder htmlBuilder = new StringBuilder();
             AddHeader(htmlBuilder, dataTable.Rows[0]);
+            int orderCounter = 0;
 
             foreach (DataRow row in dataTable.Rows)
             {
+                orderCounter++;
+
                 actual_CID = row["CID"] is DBNull ? 0 : row.Field<int>("CID");
                 actual_agentName = row["Nev"] is DBNull ? String.Empty : row.Field<string>("Nev");
 
@@ -176,25 +180,27 @@ namespace DailyOrdersEmail
                     // Add summary
                     log.Debug($"Add summary for: {CID}, {agentName}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
 
-                    htmlBuilder.Append("<tfoot>");
-                    htmlBuilder.Append($"<tr>");
-                    htmlBuilder.Append($"<td></td>");
-                    htmlBuilder.Append($"<td align='right'><b>{sum_Rend_Unit} db</b></td>");
-                    htmlBuilder.Append($"<td align='right'><b>{sum_Rabatt} db</b></td>");
-                    htmlBuilder.Append($"<td></td>");
-                    htmlBuilder.Append($"<td align='right'><b>{string.Format("{0:C0}", sum_Forgalom)}</b></td>");
-                    htmlBuilder.Append("</tr>");
-                    htmlBuilder.Append("</tfoot>");
-                    htmlBuilder.Append("</table>");
+                    htmlTableBuilder.Append("<tfoot>");
+                    if (orderCounter > 10)
+                    {
+                        InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Forgalom, htmlTableBuilder);
+                    }
+                    htmlTableBuilder.Append("</tfoot>");
+                    htmlTableBuilder.Append("</table>");
 
-                    AddFooter(htmlBuilder);
+                    AddFooter(htmlTableBuilder);
 
                     string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
                     string fileName = index + "_" + CID.ToString() + "_" + agentName + "_" + timeStamp + ".html";
                     string subject = $"Napi rendelési értesítő {CID}, {agentName}";
 
+                    InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Forgalom, htmlBuilder);
+                    htmlBuilder.Append(htmlTableBuilder.ToString());
+
                     Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
-                    SendEmail(htmlBuilder.ToString(), config, subject);
+                    SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Forgalom));
+                    
+                    htmlTableBuilder.Clear();
                     htmlBuilder.Clear();
 
                     CID = actual_CID;
@@ -202,6 +208,7 @@ namespace DailyOrdersEmail
                     sum_Forgalom = 0;
                     sum_Rabatt = 0;
                     sum_Rend_Unit = 0;
+                    orderCounter = 0;
 
                     AddHeader(htmlBuilder, row);
                 }
@@ -211,48 +218,48 @@ namespace DailyOrdersEmail
                     // Add summary
                     log.Debug($"[END]: Add summary for: {CID}, {agentName}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
 
-                    htmlBuilder.Append($"<tr>");
-                    htmlBuilder.Append($"<td align='right'>{row["Termek"]}</td>");
-                    htmlBuilder.Append($"<td align='right'>{row["Rend_Unit"]} db</td>");
-                    htmlBuilder.Append($"<td align='right'>{row["Rabatt"]} db</td>");
-                    htmlBuilder.Append($"<td align='right'>{row["Kedv_Sz"]} %</td>");
-                    htmlBuilder.Append($"<td align='right'>{string.Format("{0:C0}", row["Forgalom"])}</td>");
-                    htmlBuilder.Append("</tr>");
+                    htmlTableBuilder.Append($"<tr class='lowertabletr'>");
+                    htmlTableBuilder.Append($"<td align='right'>{row["Termek"]}</td>");
+                    htmlTableBuilder.Append($"<td align='right'>{row["Rend_Unit"]} db</td>");
+                    htmlTableBuilder.Append($"<td align='right'>{row["Rabatt"]} db</td>");
+                    htmlTableBuilder.Append($"<td align='right'>{row["Kedv_Sz"]} %</td>");
+                    htmlTableBuilder.Append($"<td align='right'>{string.Format("{0:C0}", row["Forgalom"])}</td>");
+                    htmlTableBuilder.Append("</tr>");
 
                     sum_Rend_Unit += row.Field<int>("Rend_Unit");
                     sum_Rabatt += row.Field<int>("Rabatt");
                     sum_Forgalom += row.Field<double>("Forgalom");
 
-                    htmlBuilder.Append("<tfoot>");
-                    htmlBuilder.Append($"<tr>");
-                    htmlBuilder.Append($"<td></td>");
-                    htmlBuilder.Append($"<td align='right'><b>{sum_Rend_Unit} db</b></td>");
-                    htmlBuilder.Append($"<td align='right'><b>{sum_Rabatt} db</b></td>");
-                    htmlBuilder.Append($"<td></td>");
-                    htmlBuilder.Append($"<td align='right'><b>{string.Format("{0:C0}", sum_Forgalom)}</b></td>");
-                    htmlBuilder.Append("</tr>");
-                    htmlBuilder.Append("</tfoot>");
-                    htmlBuilder.Append("</table>");
+                    htmlTableBuilder.Append("<tfoot>");
+                    if (orderCounter > 10) { 
+                        InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Forgalom, htmlTableBuilder);
+                    }
+                    htmlTableBuilder.Append("</tfoot>");
+                    htmlTableBuilder.Append("</table>");
 
-                    AddFooter(htmlBuilder);
+                    AddFooter(htmlTableBuilder);
 
                     string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
                     string fileName = index + "_" + CID.ToString() + "_" + agentName + "_" + timeStamp + ".html";
                     string subject = $"Napi rendelési értesítő {CID}, {agentName}";
 
-                    Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
-                    SendEmail(htmlBuilder.ToString(), config, subject);
+                    InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Forgalom, htmlBuilder);
+                    htmlBuilder.Append(htmlTableBuilder.ToString());
 
+                    Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
+                    SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Forgalom));
+
+                    htmlTableBuilder.Clear();
                     htmlBuilder.Clear();
                 }
 
-                htmlBuilder.Append($"<tr>");
-                htmlBuilder.Append($"<td align='right'>{row["Termek"]}</td>");
-                htmlBuilder.Append($"<td align='right'>{row["Rend_Unit"]} db</td>");
-                htmlBuilder.Append($"<td align='right'>{row["Rabatt"]} db</td>");
-                htmlBuilder.Append($"<td align='right'>{row["Kedv_Sz"]} %</td>");
-                htmlBuilder.Append($"<td align='right'>{string.Format("{0:C0}", row["Forgalom"])}</td>");
-                htmlBuilder.Append("</tr>");
+                htmlTableBuilder.Append($"<tr class='lowertabletr'>");
+                htmlTableBuilder.Append($"<td align='right'>{row["Termek"]}</td>");
+                htmlTableBuilder.Append($"<td align='right'>{row["Rend_Unit"]} db</td>");
+                htmlTableBuilder.Append($"<td align='right'>{row["Rabatt"]} db</td>");
+                htmlTableBuilder.Append($"<td align='right'>{row["Kedv_Sz"]} %</td>");
+                htmlTableBuilder.Append($"<td align='right'>{string.Format("{0:C0}", row["Forgalom"])}</td>");
+                htmlTableBuilder.Append("</tr>");
 
                 sum_Rend_Unit += row.Field<int>("Rend_Unit");
                 sum_Rabatt += row.Field<int>("Rabatt");
@@ -260,6 +267,17 @@ namespace DailyOrdersEmail
             }
 
             return lastCheckedTimestamp;
+        }
+
+        private static void InsertSummary(int sum_Rend_Unit, int sum_Rabatt, double sum_Forgalom, StringBuilder htmlBuilder)
+        {
+            htmlBuilder.Append($"<tr class='lowertabletr'>");
+            htmlBuilder.Append($"<td align='center'><b>Σ</b></td>");
+            htmlBuilder.Append($"<td align='right'><b>{sum_Rend_Unit} db</b></td>");
+            htmlBuilder.Append($"<td align='right'><b>{sum_Rabatt} db</b></td>");
+            htmlBuilder.Append($"<td></td>");
+            htmlBuilder.Append($"<td align='right'><b>{string.Format("{0:C0}", sum_Forgalom)}</b></td>");
+            htmlBuilder.Append("</tr>");
         }
 
         private void AddFooter(StringBuilder htmlBuilder)
@@ -281,57 +299,59 @@ namespace DailyOrdersEmail
 
             htmlBuilder.Append("<head>");
             htmlBuilder.Append("<style>");
-            htmlBuilder.Append("table {border: none;} ");
-            htmlBuilder.Append("th { background: #6BAFBC; padding: .75pt .75pt .75pt .75pt; font-size:8.5pt;font-family:'Arial',sans-serif;color:#333333; margin-top:7.5pt;margin-right:0in;margin-bottom:15.0pt;margin-left:0in; } ");
-            htmlBuilder.Append("td { background: #FFFCF2; padding: 1.5pt 3.75pt 1.5pt 3.75pt; font-size:8.5pt;font-family: 'Arial',sans-serif;color:#333333; margin-top:7.5pt;margin-right:0in; margin-bottom:15.0pt; margin-left:0in;line-height:12.0pt } ");
+            htmlBuilder.Append(".uppertable {border: none;} ");
+            htmlBuilder.Append("th { background: #6BAFBC; font-size:8.5pt;font-family:'Arial',sans-serif; padding: .75pt .75pt .75pt .75pt;} ");
+            htmlBuilder.Append("td { border: none; background: #FFFCF2; font-size:8.5pt;font-family:'Arial',sans-serif; padding: .75pt .75pt .75pt .75pt; } ");
+            htmlBuilder.Append(".lowertabletr { border: none; height: 30px;  } ");
+            htmlBuilder.Append(".simpletd { border: none; font-size:8.5pt;font-family:'Arial',sans-serif; padding: .75pt .75pt .75pt .75pt; background: #FFFCF2; color:#333333;} ");
             htmlBuilder.Append("tf { background: #6BAFBC; padding: .75pt .75pt .75pt .75pt; font-size:8.5pt;font-family:'Arial',sans-serif;color:#333333; margin-top:7.5pt;margin-right:0in;margin-bottom:15.0pt;margin-left:0in; } ");
             htmlBuilder.Append("</style>");
             htmlBuilder.Append("</head>");
 
-            htmlBuilder.Append($"<table cellspacing='0' cellpadding='0'>");
-            htmlBuilder.Append("<tr>");
+            htmlBuilder.Append($"<table class='uppertable'>");
+            htmlBuilder.Append("<tr height='20px'>");
             htmlBuilder.Append($"<td>Rendelés ideje</td>");
             htmlBuilder.Append($"<td>{row.Field<DateTime>("Rogzitve")}</td>");
             htmlBuilder.Append("</tr>");
 
-            htmlBuilder.Append("<tr>");
-            htmlBuilder.Append($"<td>Név</td>");
-            htmlBuilder.Append($"<td>{row.Field<string>("Nev")}</td>");
+            htmlBuilder.Append("<tr height='20px'>");
+            htmlBuilder.Append($"<td class='simpletd'>Név</td>");
+            htmlBuilder.Append($"<td class='simpletd'>{row.Field<string>("Nev")}</td>");
             htmlBuilder.Append("</tr>");
 
-            htmlBuilder.Append("<tr>");
-            htmlBuilder.Append($"<td>CID</td>");
-            htmlBuilder.Append($"<td align='left'>{row.Field<int>("CID")}</td>");
+            htmlBuilder.Append("<tr height='20px'>");
+            htmlBuilder.Append($"<td class='simpletd'>CID</td>");
+            htmlBuilder.Append($"<td align='left' class='simpletd'>{row.Field<int>("CID")}</td>");
             htmlBuilder.Append("</tr>");
 
-            htmlBuilder.Append("<tr>");
-            htmlBuilder.Append($"<td>Ügyfél</td>");
-            htmlBuilder.Append($"<td>{row.Field<string>("Ugyfel")}</td>");
+            htmlBuilder.Append("<tr height='20px''>");
+            htmlBuilder.Append($"<td class='simpletd'>Ügyfél</td>");
+            htmlBuilder.Append($"<td class='simpletd'>{row.Field<string>("Ugyfel")}</td>");
             htmlBuilder.Append("</tr>");
 
-            htmlBuilder.Append("<tr>");
-            htmlBuilder.Append($"<td>Helység</td>");
-            htmlBuilder.Append($"<td>{row.Field<string>("Helyseg")}</td>");
+            htmlBuilder.Append("<tr height='20px'>");
+            htmlBuilder.Append($"<td class='simpletd'>Helység</td>");
+            htmlBuilder.Append($"<td class='simpletd'>{row.Field<string>("Helyseg")}</td>");
             htmlBuilder.Append("</tr>");
 
-            htmlBuilder.Append("<tr>");
-            htmlBuilder.Append($"<td>Nagyker</td>");
-            htmlBuilder.Append($"<td>{row.Field<string>("Nagyker")}</td>");
+            htmlBuilder.Append("<tr height='20px'>");
+            htmlBuilder.Append($"<td class='simpletd'>Nagyker</td>");
+            htmlBuilder.Append($"<td class='simpletd'>{row.Field<string>("Nagyker")}</td>");
             htmlBuilder.Append("</tr>");
 
             htmlBuilder.Append("</table>");
 
             htmlBuilder.Append($"<table cellspacing='0' cellpadding='0'>");
-            htmlBuilder.Append($"<tr>");
+            htmlBuilder.Append($"<tr class='lowertabletr'>");
             htmlBuilder.Append($"<th>Termék</th>");
-            htmlBuilder.Append($"<th>Rendelt menny.</th>");
+            htmlBuilder.Append($"<th>Menny.</th>");
             htmlBuilder.Append($"<th>Rabatt</th>");
             htmlBuilder.Append($"<th>Kedv. %</th>");
             htmlBuilder.Append($"<th>Forgalom</th>");
             htmlBuilder.Append("</tr>");
         }
 
-        private void SendEmail(string htmlContent, Configuration config, string subject)
+        private void SendEmail(string htmlContent, Configuration config, string subject, string sumAmount)
         {
             if (config.TestMode == true)
             {
@@ -347,7 +367,7 @@ namespace DailyOrdersEmail
 
                 mail.From = new MailAddress(config.MailSendFrom);
                 mail.To.Add(config.MailSendTo);
-                mail.Subject = subject;
+                mail.Subject = $"{subject} [Σ: {sumAmount}]";
                 mail.IsBodyHtml = true;
                 mail.Body = htmlContent;
 
