@@ -9,7 +9,6 @@ using System.Text;
 using System.Timers;
 using log4net;
 using System.Reflection;
-using System.Web.UI.WebControls;
 
 namespace DailyOrdersEmail
 {
@@ -126,7 +125,7 @@ namespace DailyOrdersEmail
                         log.Info("As no new orders found the last_check value has not been changed.");
                     }
 
-                    Util.RemoveOldFiles(config.MailSaveToFolder, 30);
+                    Util.RemoveOldFiles(config.MailSaveToFolder, 10);
                 }
                 else
                 {
@@ -300,9 +299,9 @@ namespace DailyOrdersEmail
             htmlBuilder.Append("<head>");
             htmlBuilder.Append("<style>");
             htmlBuilder.Append(".uppertable {border: none;} ");
-            htmlBuilder.Append("th { background: #6BAFBC; font-size:8.5pt;font-family:'Arial',sans-serif; padding: .75pt .75pt .75pt .75pt;} ");
+            htmlBuilder.Append("th { background: #6BAFBC; font-size:8.5pt;font-family:'Arial',sans-serif; padding: 1pt 1pt 1pt 1pt;} ");
             htmlBuilder.Append("td { border: none; background: #FFFCF2; font-size:8.5pt;font-family:'Arial',sans-serif; padding: .75pt .75pt .75pt .75pt; } ");
-            htmlBuilder.Append(".lowertabletr { border: none; height: 30px;  } ");
+            htmlBuilder.Append(".lowertabletr { border: none; height: 30px;padding: 1pt 1pt 1pt 1pt; } ");
             htmlBuilder.Append(".simpletd { border: none; font-size:8.5pt;font-family:'Arial',sans-serif; padding: .75pt .75pt .75pt .75pt; background: #FFFCF2; color:#333333;} ");
             htmlBuilder.Append("tf { background: #6BAFBC; padding: .75pt .75pt .75pt .75pt; font-size:8.5pt;font-family:'Arial',sans-serif;color:#333333; margin-top:7.5pt;margin-right:0in;margin-bottom:15.0pt;margin-left:0in; } ");
             htmlBuilder.Append("</style>");

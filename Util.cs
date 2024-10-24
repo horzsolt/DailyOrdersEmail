@@ -60,31 +60,5 @@ namespace DailyOrdersEmail
                 log.Error($"An error occurred while saving to file: {ex.Message}");
             }
         }
-
-        public static T GetValueOrDefault<T>(object value)
-        {
-            if (value == DBNull.Value || value == null)
-            {
-                if (typeof(T) == typeof(string))
-                {
-                    return (T)(object)string.Empty;
-                }
-                else if (typeof(T) == typeof(int))
-                {
-                    return (T)(object)0;
-                }
-                else if (typeof(T) == typeof(DateTime))
-                {
-                    return (T)(object)DateTime.Now;
-                }
-                else
-                {
-                    return default(T);
-                }
-            }
-
-            return (T)value;
-        }
-
     }
 }
