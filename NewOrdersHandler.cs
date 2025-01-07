@@ -148,9 +148,11 @@ namespace DailyOrdersEmail
 
             int CID = dataTable.Rows[0].Field<int>("CID");
             string agentName = dataTable.Rows[0].Field<string>("Nev");
+            string nagyker = dataTable.Rows[0].Field<string>("Nagyker");
 
             int actual_CID = 0;
             string actual_agentName = String.Empty;
+            string actual_Nagyker = String.Empty;
 
             int sum_Rend_Unit = 0;
             int sum_Rabatt = 0;
@@ -167,17 +169,19 @@ namespace DailyOrdersEmail
 
                 actual_CID = row["CID"] is DBNull ? 0 : row.Field<int>("CID");
                 actual_agentName = row["Nev"] is DBNull ? String.Empty : row.Field<string>("Nev");
+                actual_Nagyker = row["Nagyker"] is DBNull ? String.Empty : row.Field<string>("Nagyker");
 
                 int index = dataTable.Rows.IndexOf(row);
 
                 log.Debug($"Actual_CID: {actual_CID}");
                 log.Debug($"Actual_AgentName: {actual_agentName}");
+                log.Debug($"Actual_Nagyker: {actual_Nagyker}");
                 log.Debug($"{index.ToString()}/{dataTable.Rows.Count}");
 
-                if ((actual_CID != CID) || (actual_agentName != agentName))
+                if ((actual_CID != CID) || (actual_agentName != agentName) || (actual_Nagyker != nagyker))
                 {
                     // Add summary
-                    log.Debug($"Add summary for: {CID}, {agentName}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
+                    log.Debug($"Add summary for: {CID}, {agentName}, {nagyker}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
 
                     htmlTableBuilder.Append("<tfoot>");
                     if (orderCounter > 10)
@@ -204,6 +208,7 @@ namespace DailyOrdersEmail
 
                     CID = actual_CID;
                     agentName = actual_agentName;
+                    nagyker = actual_Nagyker;
                     sum_Forgalom = 0;
                     sum_Rabatt = 0;
                     sum_Rend_Unit = 0;
@@ -215,7 +220,7 @@ namespace DailyOrdersEmail
                 if (index == dataTable.Rows.Count - 1)
                 {
                     // Add summary
-                    log.Debug($"[END]: Add summary for: {CID}, {agentName}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
+                    log.Debug($"[END]: Add summary for: {CID}, {agentName}, {nagyker}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
 
                     htmlTableBuilder.Append($"<tr class='lowertabletr'>");
                     htmlTableBuilder.Append($"<td align='right'>{row["Termek"]}</td>");
