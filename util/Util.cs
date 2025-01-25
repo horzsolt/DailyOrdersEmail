@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace DailyOrdersEmail
+namespace DailyOrdersEmail.util
 {
     public static class Util
     {
@@ -28,6 +28,11 @@ namespace DailyOrdersEmail
 
                 foreach (string file in files)
                 {
+                    if (Path.GetFileName(file) == "vir_daily_orders_email_.log")
+                    {
+                        continue;
+                    }
+
                     DateTime creationTime = File.GetCreationTime(file);
                     TimeSpan fileAge = currentDate - creationTime;
 

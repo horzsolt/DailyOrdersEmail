@@ -1,24 +1,24 @@
 ﻿using System;
-using System.Data.SqlClient;
-using System.Data;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Mail;
 using System.Net;
 using System.Text;
-using System.Timers;
-using log4net;
-using System.Reflection;
+using System.Data;
+using Microsoft.Extensions.Logging;
+using DailyOrdersEmail.services;
+using DailyOrdersEmail.util;
 
-namespace DailyOrdersEmail
+namespace DailyOrdersEmail.task
 {
-    public class NewOrdersHandler
+    public class CheckNewOrdersTask(MetricService metricService, ILogger<CheckNewOrdersTask> log) : ServiceTask
     {
         private DateTime? lastCheckedTimestamp;
-        private readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        public void StartCheck_Scheduled(object source, ElapsedEventArgs e)
+
+        public void ExecuteTask()
         {
-            log.Info("Scheduled run started.");
+            log.LogInformation("Scheduled run started.");
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
@@ -28,12 +28,15 @@ namespace DailyOrdersEmail
             }
             catch (Exception ex)
             {
-                log.Error($"Error: {ex}");
+                metricService.JobExecutionStatus = 0;
+                log.LogError($"Error: {ex}");
             }
 
-            log.Info("Scheduled run finished.");
+            log.LogInformation("Scheduled run finished.");
             stopwatch.Stop();
-            log.Info($"Elapsed Time: {stopwatch.Elapsed.Hours} hours, {stopwatch.Elapsed.Minutes} minutes, {stopwatch.Elapsed.Seconds} seconds");
+            metricService.JobExecutionStatus = 1;
+            metricService.RecordJobExecutionDuration(stopwatch.Elapsed.TotalSeconds);
+            log.LogInformation($"Elapsed Time: {stopwatch.Elapsed.Hours} hours, {stopwatch.Elapsed.Minutes} minutes, {stopwatch.Elapsed.Seconds} seconds");
         }
 
         private void CheckForNewRecords()
@@ -43,9 +46,9 @@ namespace DailyOrdersEmail
                                       $"Database={Environment.GetEnvironmentVariable("VIR_SQL_DATABASE")};" +
                                       $"User Id={Environment.GetEnvironmentVariable("VIR_SQL_USER")};" +
                                       $"Password={Environment.GetEnvironmentVariable("VIR_SQL_PASSWORD")};" +
-                                      "Connection Timeout=500;";
+                                      "Connection Timeout=500;Trust Server Certificate=true";
 
-            log.Debug($"Connection string: {connectionString}");
+            log.LogDebug($"Connection string: {connectionString}");
 
             Configuration config = new Configuration();
             config.TestMode = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VIR_TEST_MODE"));
@@ -62,26 +65,27 @@ namespace DailyOrdersEmail
                     {
                         if (reader.Read())
                         {
-                            config.LastCheckTime = reader.IsDBNull(0) ? (DateTime.Now.AddHours(-1)) : reader.GetDateTime(0);
-                            config.MailServer = reader.IsDBNull(1) ? String.Empty : reader.GetString(1).Trim();
-                            config.MailSecrecy = reader.IsDBNull(2) ? String.Empty : reader.GetString(2).Trim();
-                            config.MailPassword = reader.IsDBNull(3) ? String.Empty : reader.GetString(3).Trim();
-                            config.MailSendTo = reader.IsDBNull(4) ? String.Empty : reader.GetString(4).Trim();
-                            config.MailSaveToFolder = reader.IsDBNull(5) ? String.Empty : reader.GetString(5).Trim();
-                            config.MailSelectStatement = reader.IsDBNull(6) ? String.Empty : reader.GetString(6).Trim();
+                            config.LastCheckTime = reader.IsDBNull(0) ? DateTime.Now.AddHours(-1) : reader.GetDateTime(0);
+                            config.MailServer = reader.IsDBNull(1) ? string.Empty : reader.GetString(1).Trim();
+                            config.MailSecrecy = reader.IsDBNull(2) ? string.Empty : reader.GetString(2).Trim();
+                            config.MailPassword = reader.IsDBNull(3) ? string.Empty : reader.GetString(3).Trim();
+                            config.MailSendTo = reader.IsDBNull(4) ? string.Empty : reader.GetString(4).Trim();
+                            config.MailSaveToFolder = reader.IsDBNull(5) ? string.Empty : reader.GetString(5).Trim();
+                            config.MailSelectStatement = reader.IsDBNull(6) ? string.Empty : reader.GetString(6).Trim();
                             config.MailRetentionDays = reader.IsDBNull(7) ? 0 : reader.GetInt32(7);
-                            config.MailSendFrom = reader.IsDBNull(8) ? String.Empty : reader.GetString(8).Trim();
+                            config.MailSendFrom = reader.IsDBNull(8) ? string.Empty : reader.GetString(8).Trim();
 
                             if (config.TestMode == true)
                             {
                                 config.LastCheckTime = DateTime.Now.AddHours(-2);
                             }
 
-                            log.Debug($"Last check time: {config.LastCheckTime}");
+                            log.LogDebug($"Last check time: {config.LastCheckTime}");
                         }
                         else
                         {
-                            log.Error("No records found in the DailyOrderMailConfig table.");
+                            metricService.JobExecutionStatus = 0;
+                            log.LogError("No records found in the DailyOrderMailConfig table.");
                             return;
                         }
                     }
@@ -95,7 +99,7 @@ namespace DailyOrdersEmail
                     command.Parameters.AddWithValue("@timestamp", config.LastCheckTime);
 
                     string loggableQuery = query.Replace("@timestamp", $"'{config.LastCheckTime:yyyy-MM-dd HH:mm:ss}'");
-                    log.Debug($"Executing query: {loggableQuery}");
+                    log.LogDebug($"Executing query: {loggableQuery}");
 
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
@@ -109,7 +113,7 @@ namespace DailyOrdersEmail
                 {
                     if (lastCheckedTimestamp.HasValue)
                     {
-                        log.Info($"Updating the lastCheckTime in the database to {lastCheckedTimestamp}");
+                        log.LogInformation($"Updating the lastCheckTime in the database to {lastCheckedTimestamp}");
 
                         query = "UPDATE dbo.DailyOrderMailConfig SET last_check = @timestamp";
 
@@ -117,19 +121,19 @@ namespace DailyOrdersEmail
                         {
                             command.Parameters.AddWithValue("@timestamp", lastCheckedTimestamp);
                             int rowsAffected = command.ExecuteNonQuery();
-                            log.Debug($"Rows affected after updating the lastCheckTime: {rowsAffected}");
+                            log.LogDebug($"Rows affected after updating the lastCheckTime: {rowsAffected}");
                         }
                     }
                     else
                     {
-                        log.Info("As no new orders found the last_check value has not been changed.");
+                        log.LogInformation("As no new orders found the last_check value has not been changed.");
                     }
 
                     Util.RemoveOldFiles(config.MailSaveToFolder, 10);
                 }
                 else
                 {
-                    log.Debug("Running in test mode, no changes will be saved to the database.");
+                    log.LogDebug("Running in test mode, no changes will be saved to the database.");
                 }
             }
         }
@@ -138,11 +142,11 @@ namespace DailyOrdersEmail
         {
             if (dataTable.Rows.Count == 0)
             {
-                log.Info("No records found.");
+                log.LogInformation("No records found.");
                 return null;
             }
 
-            log.Debug($"Found {dataTable.Rows.Count} records.");
+            log.LogDebug($"Found {dataTable.Rows.Count} records.");
             DataRow lastRow = dataTable.Rows[dataTable.Rows.Count - 1];
             DateTime? lastCheckedTimestamp = lastRow["Rogzitve"] != DBNull.Value ? (DateTime?)lastRow["Rogzitve"] : null;
 
@@ -151,12 +155,14 @@ namespace DailyOrdersEmail
             string nagyker = dataTable.Rows[0].Field<string>("Nagyker");
 
             int actual_CID = 0;
-            string actual_agentName = String.Empty;
-            string actual_Nagyker = String.Empty;
+            string actual_agentName = string.Empty;
+            string actual_Nagyker = string.Empty;
 
             int sum_Rend_Unit = 0;
             int sum_Rabatt = 0;
-            double sum_Forgalom = 0;
+            double sum_Turnover = 0;
+            double overall_Turnover = 0;
+            int overall_OrderCount = 0;
 
             StringBuilder htmlTableBuilder = new StringBuilder();
             StringBuilder htmlBuilder = new StringBuilder();
@@ -168,25 +174,25 @@ namespace DailyOrdersEmail
                 orderCounter++;
 
                 actual_CID = row["CID"] is DBNull ? 0 : row.Field<int>("CID");
-                actual_agentName = row["Nev"] is DBNull ? String.Empty : row.Field<string>("Nev");
-                actual_Nagyker = row["Nagyker"] is DBNull ? String.Empty : row.Field<string>("Nagyker");
+                actual_agentName = row["Nev"] is DBNull ? string.Empty : row.Field<string>("Nev");
+                actual_Nagyker = row["Nagyker"] is DBNull ? string.Empty : row.Field<string>("Nagyker");
 
                 int index = dataTable.Rows.IndexOf(row);
 
-                log.Debug($"Actual_CID: {actual_CID}");
-                log.Debug($"Actual_AgentName: {actual_agentName}");
-                log.Debug($"Actual_Nagyker: {actual_Nagyker}");
-                log.Debug($"{index.ToString()}/{dataTable.Rows.Count}");
+                log.LogDebug($"Actual_CID: {actual_CID}");
+                log.LogDebug($"Actual_AgentName: {actual_agentName}");
+                log.LogDebug($"Actual_Nagyker: {actual_Nagyker}");
+                log.LogDebug($"{index.ToString()}/{dataTable.Rows.Count}");
 
-                if ((actual_CID != CID) || (actual_agentName != agentName) || (actual_Nagyker != nagyker))
+                if (actual_CID != CID || actual_agentName != agentName || actual_Nagyker != nagyker)
                 {
                     // Add summary
-                    log.Debug($"Add summary for: {CID}, {agentName}, {nagyker}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
+                    log.LogDebug($"Add summary for: {CID}, {agentName}, {nagyker}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
 
                     htmlTableBuilder.Append("<tfoot>");
                     if (orderCounter > 10)
                     {
-                        InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Forgalom, htmlTableBuilder);
+                        InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Turnover, htmlTableBuilder);
                     }
                     htmlTableBuilder.Append("</tfoot>");
                     htmlTableBuilder.Append("</table>");
@@ -197,19 +203,20 @@ namespace DailyOrdersEmail
                     string fileName = index + "_" + CID.ToString() + "_" + agentName + "_" + timeStamp + ".html";
                     string subject = $"Napi rendelési értesítő {CID}, {agentName}";
 
-                    InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Forgalom, htmlBuilder);
+                    InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Turnover, htmlBuilder);
                     htmlBuilder.Append(htmlTableBuilder.ToString());
 
                     Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
-                    SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Forgalom));
-                    
+                    SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
+                    overall_OrderCount++;
+
                     htmlTableBuilder.Clear();
                     htmlBuilder.Clear();
 
                     CID = actual_CID;
                     agentName = actual_agentName;
                     nagyker = actual_Nagyker;
-                    sum_Forgalom = 0;
+                    sum_Turnover = 0;
                     sum_Rabatt = 0;
                     sum_Rend_Unit = 0;
                     orderCounter = 0;
@@ -220,7 +227,7 @@ namespace DailyOrdersEmail
                 if (index == dataTable.Rows.Count - 1)
                 {
                     // Add summary
-                    log.Debug($"[END]: Add summary for: {CID}, {agentName}, {nagyker}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
+                    log.LogDebug($"[END]: Add summary for: {CID}, {agentName}, {nagyker}. Row index: {index.ToString()}/{dataTable.Rows.Count}");
 
                     htmlTableBuilder.Append($"<tr class='lowertabletr'>");
                     htmlTableBuilder.Append($"<td align='right'>{row["Termek"]}</td>");
@@ -232,11 +239,13 @@ namespace DailyOrdersEmail
 
                     sum_Rend_Unit += row.Field<int>("Rend_Unit");
                     sum_Rabatt += row.Field<int>("Rabatt");
-                    sum_Forgalom += row.Field<double>("Forgalom");
+                    sum_Turnover += row.Field<double>("Forgalom");
+                    overall_Turnover += sum_Turnover;
 
                     htmlTableBuilder.Append("<tfoot>");
-                    if (orderCounter > 10) { 
-                        InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Forgalom, htmlTableBuilder);
+                    if (orderCounter > 10)
+                    {
+                        InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Turnover, htmlTableBuilder);
                     }
                     htmlTableBuilder.Append("</tfoot>");
                     htmlTableBuilder.Append("</table>");
@@ -247,11 +256,12 @@ namespace DailyOrdersEmail
                     string fileName = index + "_" + CID.ToString() + "_" + agentName + "_" + timeStamp + ".html";
                     string subject = $"Napi rendelési értesítő {CID}, {agentName}";
 
-                    InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Forgalom, htmlBuilder);
+                    InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Turnover, htmlBuilder);
                     htmlBuilder.Append(htmlTableBuilder.ToString());
 
                     Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
-                    SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Forgalom));
+                    SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
+                    overall_OrderCount++;
 
                     htmlTableBuilder.Clear();
                     htmlBuilder.Clear();
@@ -267,9 +277,12 @@ namespace DailyOrdersEmail
 
                 sum_Rend_Unit += row.Field<int>("Rend_Unit");
                 sum_Rabatt += row.Field<int>("Rabatt");
-                sum_Forgalom += row.Field<double>("Forgalom");
+                sum_Turnover += row.Field<double>("Forgalom");
+                overall_Turnover += sum_Turnover;
             }
 
+            metricService.OrderSum = overall_Turnover;
+            metricService.OrderCount = overall_OrderCount;
             return lastCheckedTimestamp;
         }
 
@@ -296,7 +309,7 @@ namespace DailyOrdersEmail
 
         private void AddHeader(StringBuilder htmlBuilder, DataRow row)
         {
-            log.Debug($"Add header for {row.Field<string>("Nev")}");
+            log.LogDebug($"Add header for {row.Field<string>("Nev")}");
 
             htmlBuilder.Append("<!DOCTYPE html>");
             htmlBuilder.Append("<html>");
@@ -359,13 +372,13 @@ namespace DailyOrdersEmail
         {
             if (config.TestMode == true)
             {
-                log.Debug("Email sending is disabled in test mode.");
+                log.LogDebug("Email sending is disabled in test mode.");
                 return;
             }
 
             try
             {
-                log.Debug($"Sending email: {subject} using {config.MailServer}:587");
+                log.LogDebug($"Sending email: {subject} using {config.MailServer}:587");
                 MailMessage mail = new MailMessage();
                 SmtpClient smtpClient = new SmtpClient(config.MailServer);
 
@@ -380,11 +393,11 @@ namespace DailyOrdersEmail
                 smtpClient.EnableSsl = true;
 
                 smtpClient.Send(mail);
-                log.Debug($"Email sent successfully: {subject}");
+                log.LogDebug($"Email sent successfully: {subject}");
             }
             catch (Exception ex)
             {
-                log.Error($"Failed to send email: {ex}");
+                log.LogError($"Failed to send email: {ex}");
                 throw;
             }
         }
