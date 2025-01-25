@@ -47,14 +47,14 @@ namespace DailyOrdersEmail.services
             }
         }
 
-        public MetricService(IMeterFactory meterFactory, ILogger<MetricService> logger)
+        public MetricService(IMeterFactory meterFactory, ILogger<MetricService> logger, string serviceName, string serviceVersion)
         {
             JobExecutionStatus = 1;
             OrderCount = 0;
             OrderSum = 0;
 
             log = logger;
-            meter = meterFactory.Create("DailyOrderService", "1.0.0");
+            meter = meterFactory.Create(serviceName, serviceVersion);
 
             taskExecutionDuration = meter.CreateHistogram<double>(
               name: "dailyorder_job_execution_duration", unit: "seconds",

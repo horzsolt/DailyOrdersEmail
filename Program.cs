@@ -14,6 +14,7 @@ using OpenTelemetry.Trace;
 using System;
 using System.Collections.Generic;
 using System.Configuration.Install;
+using System.Diagnostics.Metrics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -22,14 +23,13 @@ namespace DailyOrdersEmail
 {
     class Program
     {
-        private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        private static readonly String serviceName = "DailyMailService";
+        private static readonly String serviceName = "VIR daily mail sender service";
         private static readonly String serviceVersion = "1.0.0";
         private static void ConfigureServices(HostApplicationBuilder appBuilder)
         {
             appBuilder.Services.AddWindowsService(options =>
             {
-                options.ServiceName = "VIR daily mail sender service.";
+                options.ServiceName = serviceName;
             });
 
             appBuilder.Services.AddOpenTelemetry()
@@ -80,7 +80,13 @@ namespace DailyOrdersEmail
                 appBuilder.Services.AddTransient(typeof(ServiceTask), task);
             }
 
-            appBuilder.Services.AddSingleton<MetricService>();
+            appBuilder.Services.AddSingleton<MetricService>(provider =>
+            {
+                var meterFactory = provider.GetRequiredService<IMeterFactory>();
+                var logger = provider.GetRequiredService<ILogger<MetricService>>();
+
+                return new MetricService(meterFactory, logger, serviceName, serviceVersion);
+            });
 
             appBuilder.Services.AddHostedService(sp =>
                 new MailSenderService(sp.GetRequiredService<ILogger<MailSenderService>>(),
@@ -96,8 +102,6 @@ namespace DailyOrdersEmail
             string exeDirectory = AppDomain.CurrentDomain.BaseDirectory;
             string log4NetConfigFilePath = Path.Combine(exeDirectory, "log4net.config");
             XmlConfigurator.Configure(new FileInfo(log4NetConfigFilePath));
-            log.Info("Application started.");
-
             HostApplicationBuilder appBuilder = Host.CreateApplicationBuilder(args);
 
             ConfigureServices(appBuilder);
@@ -105,6 +109,7 @@ namespace DailyOrdersEmail
             var serviceProvider = appBuilder.Services.BuildServiceProvider();
             var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
+            logger.LogInformation("Application started.");
             logger.LogDebug("Framework: " + FRWK.GetEnvironmentVersion() + " " + FRWK.GetTargetFrameworkName() + " " + FRWK.GetFrameworkDescription());
 
 
