@@ -35,7 +35,7 @@ namespace DailyOrdersEmail.task
             log.LogInformation("Scheduled run finished.");
             stopwatch.Stop();
             metricService.JobExecutionStatus = 1;
-            metricService.RecordJobExecutionDuration(stopwatch.Elapsed.TotalSeconds);
+            metricService.RecordJobExecutionDuration(Convert.ToInt32(stopwatch.Elapsed.TotalSeconds));
             log.LogInformation($"Elapsed Time: {stopwatch.Elapsed.Hours} hours, {stopwatch.Elapsed.Minutes} minutes, {stopwatch.Elapsed.Seconds} seconds");
         }
 

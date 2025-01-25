@@ -6,7 +6,7 @@ namespace DailyOrdersEmail.services
     public class MetricService
     {
         private readonly Meter meter;
-        private readonly Histogram<double> taskExecutionDuration;
+        private readonly Histogram<int> taskExecutionDuration;
         private int jobExecutionStatus;
         private int orderCount;
         private double orderSum;
@@ -56,13 +56,13 @@ namespace DailyOrdersEmail.services
             log = logger;
             meter = meterFactory.Create(serviceName, serviceVersion);
 
-            taskExecutionDuration = meter.CreateHistogram<double>(
+            taskExecutionDuration = meter.CreateHistogram<int>(
               name: "dailyorder_job_execution_duration", unit: "seconds",
               description: "Daily order job execution duration in seconds.");
 
             meter.CreateObservableGauge(
                 name: "dailyorder_job_execution_status",
-                unit: "status",
+                unit: "value",
                 observeValue: () => new Measurement<int>(JobExecutionStatus),
                 description:
                 "The result code of the latest daily order checker job execution (0 = Failed, 1 = Succeeded)"
@@ -83,7 +83,7 @@ namespace DailyOrdersEmail.services
             );
         }
 
-        public void RecordJobExecutionDuration(double duration)
+        public void RecordJobExecutionDuration(int duration)
         {
             log.LogDebug($"RecordJobExecutionDuration {duration}");
             taskExecutionDuration.Record(duration);
