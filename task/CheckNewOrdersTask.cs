@@ -209,6 +209,7 @@ namespace DailyOrdersEmail.task
                     Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
                     SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
                     overall_OrderCount++;
+                    overall_Turnover += sum_Turnover;
 
                     htmlTableBuilder.Clear();
                     htmlBuilder.Clear();
@@ -240,7 +241,6 @@ namespace DailyOrdersEmail.task
                     sum_Rend_Unit += row.Field<int>("Rend_Unit");
                     sum_Rabatt += row.Field<int>("Rabatt");
                     sum_Turnover += row.Field<double>("Forgalom");
-                    overall_Turnover += sum_Turnover;
 
                     htmlTableBuilder.Append("<tfoot>");
                     if (orderCounter > 10)
@@ -262,6 +262,7 @@ namespace DailyOrdersEmail.task
                     Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
                     SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
                     overall_OrderCount++;
+                    overall_Turnover += sum_Turnover;
 
                     htmlTableBuilder.Clear();
                     htmlBuilder.Clear();
@@ -278,11 +279,12 @@ namespace DailyOrdersEmail.task
                 sum_Rend_Unit += row.Field<int>("Rend_Unit");
                 sum_Rabatt += row.Field<int>("Rabatt");
                 sum_Turnover += row.Field<double>("Forgalom");
-                overall_Turnover += sum_Turnover;
             }
 
             metricService.OrderSum = overall_Turnover;
             metricService.OrderCount = overall_OrderCount;
+
+            log.LogDebug($"Reporting metrics, orderSum: {overall_Turnover}, orderCount: {overall_OrderCount}.");
             return lastCheckedTimestamp;
         }
 
