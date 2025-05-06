@@ -89,12 +89,16 @@ namespace DailyOrdersEmail
             });
 
             appBuilder.Services.AddHostedService(sp =>
-                new MailSenderService(sp.GetRequiredService<ILogger<MailSenderService>>(),
-                sp.GetRequiredService<IEnumerable<ServiceTask>>()));
+                new PatikaManService(sp.GetRequiredService<ILogger<PatikaManService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                    .Where(t => t.GetType().GetCustomAttribute<PatikamanTaskAttribute>() != null)));
+
+            appBuilder.Services.AddHostedService(sp =>
+                new MailSenderService(sp.GetRequiredService<ILogger<MailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                    .Where(t => t.GetType().GetCustomAttribute<CheckNewOrderTaskAttribute>() != null)));
 
             appBuilder.Services.AddSingleton(sp =>
-                new MailSenderService(sp.GetRequiredService<ILogger<MailSenderService>>(),
-                sp.GetRequiredService<IEnumerable<ServiceTask>>()));
+                new PatikaManService(sp.GetRequiredService<ILogger<PatikaManService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                    .Where(t => t.GetType().GetCustomAttribute<PatikamanTaskAttribute>() != null)));
 
         }
         static void Main(string[] args)

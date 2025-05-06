@@ -12,6 +12,7 @@ using DailyOrdersEmail.util;
 
 namespace DailyOrdersEmail.task
 {
+    [CheckNewOrderTask]
     public class CheckNewOrdersTask(MetricService metricService, ILogger<CheckNewOrdersTask> log) : ServiceTask
     {
         private DateTime? lastCheckedTimestamp;
