@@ -135,8 +135,8 @@ namespace DailyOrdersEmail
                         {
                             logger.LogInformation("Starting the service in interactive mode.");
 
-                            var mailService = serviceProvider.GetRequiredService<MailSenderService>();
-                            mailService.StartAsConsole(null);
+                            var patikaService = serviceProvider.GetRequiredService<PatikaManService>();
+                            patikaService.StartAsConsole(null);
 
                         }
                         break;

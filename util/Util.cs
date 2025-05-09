@@ -1,6 +1,8 @@
 ﻿using log4net;
 using System;
 using System.IO;
+using System.Net.Mail;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -63,6 +65,41 @@ namespace DailyOrdersEmail.util
             catch (Exception ex)
             {
                 log.Error($"An error occurred while saving to file: {ex.Message}");
+            }
+        }
+
+        public static void SendEmail(string htmlContent, Configuration config, string subject, string sumAmount)
+        {
+            if (config.TestMode == true)
+            {
+                log.Debug("Email sending is disabled in test mode.");
+                return;
+            }
+
+            try
+            {
+                log.Debug($"Sending email: {subject} using {config.MailServer}:587");
+                MailMessage mail = new MailMessage();
+                SmtpClient smtpClient = new SmtpClient(config.MailServer);
+
+                mail.From = new MailAddress(config.MailSendFrom);
+                //mail.To.Add(config.MailSendTo);
+                mail.To.Add("horvath.zsolt@goodwillpharma.com");
+                mail.Subject = $"{subject} [Σ: {sumAmount}]";
+                mail.IsBodyHtml = true;
+                mail.Body = htmlContent;
+
+                smtpClient.Port = 587;
+                smtpClient.Credentials = new NetworkCredential(config.MailSendFrom, config.MailPassword);
+                smtpClient.EnableSsl = true;
+
+                smtpClient.Send(mail);
+                log.Debug($"Email sent successfully: {subject}");
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Failed to send email: {ex}");
+                throw;
             }
         }
     }

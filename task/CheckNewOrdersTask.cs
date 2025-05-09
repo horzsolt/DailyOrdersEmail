@@ -2,8 +2,6 @@
 using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
-using System.Net.Mail;
-using System.Net;
 using System.Text;
 using System.Data;
 using Microsoft.Extensions.Logging;
@@ -208,7 +206,7 @@ namespace DailyOrdersEmail.task
                     htmlBuilder.Append(htmlTableBuilder.ToString());
 
                     Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
-                    SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
+                    Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
                     overall_OrderCount++;
                     overall_Turnover += sum_Turnover;
 
@@ -261,7 +259,7 @@ namespace DailyOrdersEmail.task
                     htmlBuilder.Append(htmlTableBuilder.ToString());
 
                     Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
-                    SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
+                    Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
                     overall_OrderCount++;
                     overall_Turnover += sum_Turnover;
 
@@ -304,8 +302,8 @@ namespace DailyOrdersEmail.task
         {
             htmlBuilder.Append("<br>");
             htmlBuilder.Append("<p style='font-family: Arial, sans-serif; font-size: 10px; color: #333;'>");
-            htmlBuilder.Append("Hibabejelentés, észrevétel, javaslat: <a href='mailto:horvath.zsolt@goodwillpharma.com'>horvath.zsolt@goodwillpharma.com</a><br>");
             htmlBuilder.Append("Ezt az üzenetet a VIR Rendelés Értesítő alkalmazás generálta, kérjük ne válaszolj rá.<br>");
+            htmlBuilder.Append("Hibabejelentés, észrevétel, javaslat: <a href='mailto:horvath.zsolt@goodwillpharma.com'>horvath.zsolt@goodwillpharma.com</a><br>");
             htmlBuilder.Append("</p>");
             htmlBuilder.Append("</html>");
         }
@@ -369,40 +367,6 @@ namespace DailyOrdersEmail.task
             htmlBuilder.Append($"<th>Kedv. %</th>");
             htmlBuilder.Append($"<th>Forgalom</th>");
             htmlBuilder.Append("</tr>");
-        }
-
-        private void SendEmail(string htmlContent, Configuration config, string subject, string sumAmount)
-        {
-            if (config.TestMode == true)
-            {
-                log.LogDebug("Email sending is disabled in test mode.");
-                return;
-            }
-
-            try
-            {
-                log.LogDebug($"Sending email: {subject} using {config.MailServer}:587");
-                MailMessage mail = new MailMessage();
-                SmtpClient smtpClient = new SmtpClient(config.MailServer);
-
-                mail.From = new MailAddress(config.MailSendFrom);
-                mail.To.Add(config.MailSendTo);
-                mail.Subject = $"{subject} [Σ: {sumAmount}]";
-                mail.IsBodyHtml = true;
-                mail.Body = htmlContent;
-
-                smtpClient.Port = 587;
-                smtpClient.Credentials = new NetworkCredential(config.MailSendFrom, config.MailPassword);
-                smtpClient.EnableSsl = true;
-
-                smtpClient.Send(mail);
-                log.LogDebug($"Email sent successfully: {subject}");
-            }
-            catch (Exception ex)
-            {
-                log.LogError($"Failed to send email: {ex}");
-                throw;
-            }
         }
     }
 }
