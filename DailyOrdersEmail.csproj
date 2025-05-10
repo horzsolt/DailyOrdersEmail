@@ -31,7 +31,7 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net9.0-windows</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AssemblyTitle>DailyOrdersEmail</AssemblyTitle>
     <Product>DailyOrdersEmail</Product>
@@ -43,6 +43,9 @@
     <Compile Update="MailSenderService.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="curl.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="log4net.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

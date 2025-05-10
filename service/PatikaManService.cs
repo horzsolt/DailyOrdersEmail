@@ -36,7 +36,7 @@ namespace DailyOrdersEmail.service
 
                 var now = DateTime.Now;
                 //var nextRun = now.AddMinutes(2);
-                var nextRun = now.AddMinutes(30);
+                var nextRun = now.AddMinutes(2);
                 var delay = nextRun - now;
 
 
