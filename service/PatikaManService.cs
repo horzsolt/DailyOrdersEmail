@@ -29,15 +29,14 @@ namespace DailyOrdersEmail.service
             while (!stoppingToken.IsCancellationRequested)
             {
                 // Calculate the next 8 PM
-                /*var now = DateTime.Now;
-                var nextRun = now.Date.AddDays(now.Hour >= 20 ? 1 : 0).AddHours(20);
-                var delay = nextRun - now;
-                */
-
                 var now = DateTime.Now;
-                //var nextRun = now.AddMinutes(2);
-                var nextRun = now.AddMinutes(2);
+                var nextRun = now.Date.AddDays(now.Hour >= 17 ? 1 : 0).AddHours(17);
                 var delay = nextRun - now;
+                
+
+                /*var now = DateTime.Now;
+                var nextRun = now.AddMinutes(2);
+                var delay = nextRun - now;*/
 
 
                 var readableDelay = $"{delay.Days} days, {delay.Hours} hours, {delay.Minutes} minutes, and {delay.Seconds} seconds";

@@ -68,7 +68,7 @@ namespace DailyOrdersEmail.util
             }
         }
 
-        public static void SendEmail(string htmlContent, Configuration config, string subject, string sumAmount)
+        public static void SendEmail(string htmlContent, Configuration config, string subject, string sumAmount, string sendTo = null)
         {
             if (config.TestMode == true)
             {
@@ -83,8 +83,7 @@ namespace DailyOrdersEmail.util
                 SmtpClient smtpClient = new SmtpClient(config.MailServer);
 
                 mail.From = new MailAddress(config.MailSendFrom);
-                //mail.To.Add(config.MailSendTo);
-                mail.To.Add("horvath.zsolt@goodwillpharma.com");
+                mail.To.Add(sendTo == null ? config.MailSendTo : sendTo);
                 mail.Subject = $"{subject} [Σ: {sumAmount}]";
                 mail.IsBodyHtml = true;
                 mail.Body = htmlContent;

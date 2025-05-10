@@ -147,7 +147,7 @@ namespace DailyOrdersEmail.task
             AddFooter(sb);
 
             string subject = $"Napi PatikaManager értesítő {targetDate.ToString("yyyy. MM. dd.")}";
-            Util.SendEmail(sb.ToString(), GetEmailConfiguration(), subject, totalMennyiseg + " db");
+            Util.SendEmail(sb.ToString(), GetEmailConfiguration(), subject, totalMennyiseg + " db", "horvath.zsolt@goodwillpharma.com");
         }
 
         private int ParseKedvezmeny(string raw)
