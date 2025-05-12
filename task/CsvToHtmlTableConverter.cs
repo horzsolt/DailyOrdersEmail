@@ -14,6 +14,12 @@ namespace DailyOrdersEmail.task
 
     class CsvToHtmlTableConverter(ILogger<PatikamanTask> log)
     {
+
+        string connectionString = $"Server={Environment.GetEnvironmentVariable("VIR_SQL_SERVER_NAME")};" +
+                          $"Database={Environment.GetEnvironmentVariable("VIR_SQL_DATABASE")};" +
+                          $"User Id={Environment.GetEnvironmentVariable("VIR_SQL_USER")};" +
+                          $"Password={Environment.GetEnvironmentVariable("VIR_SQL_PASSWORD")};" +
+                          "Connection Timeout=500;Trust Server Certificate=true";
         class CsvRow
         {
             public string Termeknev { get; set; }
@@ -21,14 +27,37 @@ namespace DailyOrdersEmail.task
             public int Mennyiseg { get; set; }
         }
 
+        private int GetCsomagDB(string termeknev, SqlConnection connection)
+        {
+            int csomagDB = 0;
+
+            string query = "SELECT TOP 1 CSOMAG_DB FROM dbo.Patikaman WHERE CSOMAG_KEDV = @Termeknev";
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@Termeknev", termeknev);
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        csomagDB = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                    }
+                }
+
+            }
+
+            if (csomagDB == 0)
+            {
+                log.LogError($"No csomagDB found for termeknev: {termeknev}");
+            }
+            else
+            {
+                log.LogDebug($"CsomagDB for {termeknev}: {csomagDB}");
+            }
+            return csomagDB;
+        }
+
         private Configuration GetEmailConfiguration()
         {
-
-            string connectionString = $"Server={Environment.GetEnvironmentVariable("VIR_SQL_SERVER_NAME")};" +
-                                      $"Database={Environment.GetEnvironmentVariable("VIR_SQL_DATABASE")};" +
-                                      $"User Id={Environment.GetEnvironmentVariable("VIR_SQL_USER")};" +
-                                      $"Password={Environment.GetEnvironmentVariable("VIR_SQL_PASSWORD")};" +
-                                      "Connection Timeout=500;Trust Server Certificate=true";
 
             log.LogDebug($"Connection string: {connectionString}");
 
@@ -75,76 +104,89 @@ namespace DailyOrdersEmail.task
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             var encoding = Encoding.GetEncoding(1250);
 
-            using (var reader = new StreamReader(csvPath, encoding))
-            {
-                string header = reader.ReadLine(); // Skip first row
-                while (!reader.EndOfStream)
-                {
-                    var line = reader.ReadLine();
-                    var parts = line.Split(';');
-
-                    if (parts.Length < 35)
-                        continue;
-
-                    if (!DateTime.TryParse(parts[5].Trim('"'), out var rowDate))
-                        continue;
-
-                    if (rowDate.Date != targetDate.Date)
-                        continue;
-
-                    rows.Add(new CsvRow
-                    {
-                        Termeknev = parts[32].Trim('"'),
-                        Kedvezmeny = ParseKedvezmeny(parts[35]),
-                        Mennyiseg = int.TryParse(parts[33], out var qty) ? qty : 0
-                    });
-                }
-            }
-
-            var grouped = rows
-                .GroupBy(r => r.Termeknev)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.GroupBy(r => r.Kedvezmeny)
-                          .Select(sg => (Kedvezmeny: sg.Key, Mennyiseg: sg.Sum(r => r.Mennyiseg)))
-                          .ToList()
-                );
-
-            int totalMennyiseg = rows.Sum(r => r.Mennyiseg);
-
+            int totalMennyiseg = 0;
             var sb = new StringBuilder();
-            AddHeader(sb);
 
-            foreach (var kvp in grouped)
+            using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                sb.AppendLine("<tr class='lowertabletr'>");
-                sb.Append($"<td align='right'>{kvp.Key}</td>");
+                connection.Open();
+                using (var reader = new StreamReader(csvPath, encoding))
+                {
+                    string header = reader.ReadLine(); // Skip first row
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        var parts = line.Split(';');
 
-                sb.Append("<td align='right'>");
-                foreach (var pair in kvp.Value)
-                {
-                    sb.Append($"{pair.Kedvezmeny} %<br>");
-                }
-                sb.Append("</td>");
+                        if (parts.Length < 35)
+                            continue;
 
-                sb.Append("<td align='right'>");
-                foreach (var pair in kvp.Value)
-                {
-                    sb.Append($"{pair.Mennyiseg}<br>");
+                        if (!DateTime.TryParse(parts[5].Trim('"'), out var rowDate))
+                            continue;
+
+                        if (rowDate.Date != targetDate.Date)
+                            continue;
+
+                        rows.Add(new CsvRow
+                        {
+                            Termeknev = parts[2].Trim('"'),
+                            Kedvezmeny = ParseKedvezmeny(parts[35]),
+                            Mennyiseg = int.TryParse(parts[33], out var qty) ? qty : 0,
+                        });
+                    }
                 }
-                sb.Append("</td>");
-                sb.Append("<td align='right'>");
-                foreach (var pair in kvp.Value)
+
+                var grouped = rows
+                    .GroupBy(r => r.Termeknev)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.GroupBy(r => r.Kedvezmeny)
+                              .Select(sg => (Kedvezmeny: sg.Key, Mennyiseg: sg.Sum(r => r.Mennyiseg)))
+                              .ToList()
+                    );
+
+                totalMennyiseg = rows.Sum(r => r.Mennyiseg);
+
+                AddHeader(sb);
+
+                foreach (var kvp in grouped)
                 {
-                    sb.Append($"0<br>");
+                    sb.AppendLine("<tr class='lowertabletr'>");
+                    sb.Append($"<td align='right'>{kvp.Key}</td>");
+
+                    sb.Append("<td align='right'>");
+                    foreach (var pair in kvp.Value)
+                    {
+                        sb.Append($"{pair.Kedvezmeny} %<br>");
+                    }
+                    sb.Append("</td>");
+
+                    sb.Append("<td align='right'>");
+                    foreach (var pair in kvp.Value)
+                    {
+                        sb.Append($"{pair.Mennyiseg}<br>");
+                    }
+                    sb.Append("</td>");
+                    sb.Append("<td align='right'>");
+                    foreach (var pair in kvp.Value)
+                    {
+                        sb.Append($"{GetCsomagDB(kvp.Key + "_" + pair.Kedvezmeny, connection)}<br>");
+                    }
+                    sb.Append("</td>");
+
+                    sb.Append("<td align='right'>");
+                    foreach (var pair in kvp.Value)
+                    {
+                        sb.Append($"{pair.Mennyiseg / GetCsomagDB(kvp.Key + "_" + pair.Kedvezmeny, connection)}<br>");
+                    }
+                    sb.Append("</td>");
+                    sb.AppendLine("</tr>");
                 }
-                sb.Append("</td>");
-                sb.AppendLine("</tr>");
+
+                sb.AppendLine($"<tr class='lowertabletr'><td align='right'><strong>Összesen</strong></td><td></td><td align='right'><strong>{totalMennyiseg}</strong></td><td></td></tr>");
+                sb.AppendLine("</table>");
+                AddFooter(sb);
             }
-
-            sb.AppendLine($"<tr class='lowertabletr'><td align='right'><strong>Összesen</strong></td><td></td><td align='right'><strong>{totalMennyiseg}</strong></td><td></td></tr>");
-            sb.AppendLine("</table>");
-            AddFooter(sb);
 
             string subject = $"Napi PatikaManager értesítő {targetDate.ToString("yyyy. MM. dd.")}";
             Util.SendEmail(sb.ToString(), GetEmailConfiguration(), subject, totalMennyiseg + " db", "horvath.zsolt@goodwillpharma.com");
@@ -177,12 +219,13 @@ namespace DailyOrdersEmail.task
             htmlBuilder.Append("</head>");
 
             htmlBuilder.Append($"<table cellspacing='0' cellpadding='0'>");
-            
+
             htmlBuilder.Append($"<tr class='lowertabletr'>");
             htmlBuilder.Append($"<th>Terméknév</th>");
             htmlBuilder.Append($"<th>Kedvezmény</th>");
             htmlBuilder.Append($"<th>Mennyiség</th>");
-            htmlBuilder.Append($"<th>Csomag (db)</th>");
+            htmlBuilder.Append($"<th>Db/Csomag</th>");
+            htmlBuilder.Append($"<th>Csomag</th>");
             htmlBuilder.Append("</tr>");
         }
 

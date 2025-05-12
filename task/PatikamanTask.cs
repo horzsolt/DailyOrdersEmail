@@ -11,7 +11,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net;
 using System.Net.Http.Headers;
-using System.IO.Compression;
+using System.Collections.Generic;
 
 namespace DailyOrdersEmail.task
 {
@@ -73,13 +73,36 @@ namespace DailyOrdersEmail.task
                 client.DefaultRequestHeaders.Add("Priority", "u=0, i");
                 client.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
 
+                var _response = client.GetAsync("/").Result;
+
+                var _cookies = handler.CookieContainer.GetCookies(new Uri("https://dashboard.patikamanagement.hu"));
+                foreach (System.Net.Cookie cookie in _cookies)
+                {
+                    Console.WriteLine($"Cookie: {cookie.Name} = {cookie.Value}");
+                }
+
+                var loginData = new Dictionary<string, string>
+                {
+                    { "email", username },
+                    { "password", password }
+                };
+
+                var loginTask = client.PostAsync("/#login/login", new FormUrlEncodedContent(loginData));
+                loginTask.Wait();
+                var loginResponse = loginTask.Result;
+
+                if (!loginResponse.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("❌ Login failed. Status code: " + loginResponse.StatusCode);
+                    return;
+                }
+
                 string[] lines = File.ReadAllLines(@"C:\VIR\patikaman.ini");
                 string phpsessid = lines
                     .Where(line => line.StartsWith("PHPSESSID=", StringComparison.OrdinalIgnoreCase))
                     .Select(line => line.Substring("PHPSESSID=".Length).Trim())
                     .FirstOrDefault();
 
-                string url = "https://dashboard.patikamanagement.hu/main/portfolio_max/packages/time_period/10301/data/orders/export";
                 string cookieHeader = $"PHPSESSID={phpsessid}";
 
                 client.DefaultRequestHeaders.Accept.Clear();

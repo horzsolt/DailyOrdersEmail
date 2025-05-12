@@ -70,7 +70,7 @@ namespace DailyOrdersEmail.util
 
         public static void SendEmail(string htmlContent, Configuration config, string subject, string sumAmount, string sendTo = null)
         {
-            if (config.TestMode == true)
+            if (config.TestMode == false)
             {
                 log.Debug("Email sending is disabled in test mode.");
                 return;
