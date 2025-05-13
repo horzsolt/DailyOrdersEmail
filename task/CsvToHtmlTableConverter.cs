@@ -231,8 +231,8 @@ namespace DailyOrdersEmail.task
             sb.AppendLine("</table>");
             AddFooter(sb);
 
-            string subject = $"Napi Patikamanager értesítő (termék) {targetDate.ToString("yyyy. MM. dd.")}";
-            Util.SendEmail(sb.ToString(), GetEmailConfiguration(), subject, totalMennyiseg + " db", "horvath.zsolt@goodwillpharma.com");
+            string subject = $"Napi Patikamanagement értesítő (termék) {targetDate.ToString("yyyy. MM. dd.")}";
+            Util.SendEmail(sb.ToString(), GetEmailConfiguration(), subject, totalMennyiseg + " db");
         }
 
         private void SendHtmlTableGroupedByRogzitoAndGyogyszertar(List<CsvRow> rows, DateTime targetDate)
@@ -340,8 +340,8 @@ namespace DailyOrdersEmail.task
             sb.AppendLine("</table>");
             AddFooter(sb);
 
-            string subject = $"Napi Patikamanager értesítő (értekesítő) {targetDate:yyyy. MM. dd.}";
-            Util.SendEmail(sb.ToString(), GetEmailConfiguration(), subject, $"{totalMennyiseg} db", "horvath.zsolt@goodwillpharma.com");
+            string subject = $"Napi Patikamanagement értesítő (REP) {targetDate:yyyy. MM. dd.}";
+            Util.SendEmail(sb.ToString(), GetEmailConfiguration(), subject, $"{totalMennyiseg} db");
         }
 
 

@@ -30,7 +30,7 @@ namespace DailyOrdersEmail.service
             {
                 // Calculate the next 8 PM
                 var now = DateTime.Now;
-                var nextRun = now.Date.AddDays(now.Hour >= 19? 1 : 0).AddHours(19);
+                var nextRun = now.Date.AddDays(now.Hour >= 18? 1 : 0).AddHours(19);
                 var delay = nextRun - now;
                 
 
