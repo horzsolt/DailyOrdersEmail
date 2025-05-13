@@ -57,12 +57,12 @@ namespace DailyOrdersEmail.task
             using (var client = new HttpClient(handler))
             {
                 client.BaseAddress = new Uri("https://dashboard.patikamanagement.hu");
-                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/13");
-                client.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                client.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br, zstd");
-                client.DefaultRequestHeaders.Add("Accept-Language", "hu-HU,hu;q=0.8,en-US;q=0.5,en;q=0.3");
-                client.DefaultRequestHeaders.Add("Connection", "keep-alive");
-                client.DefaultRequestHeaders.Add("Host", "dashboard.patikamanagement.hu");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/13");
+                client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                client.DefaultRequestHeaders.AcceptEncoding.ParseAdd("gzip, deflate, br, zstd");
+                client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("hu-HU,hu;q=0.8,en-US;q=0.5,en;q=0.3");
+                client.DefaultRequestHeaders.Connection.ParseAdd("keep-alive");
+                client.DefaultRequestHeaders.Host = "dashboard.patikamanagement.hu";
                 client.DefaultRequestHeaders.Add("Sec-Fetch-Dest", "empty");
                 client.DefaultRequestHeaders.Add("Sec-Fetch-Mode", "cors");
                 client.DefaultRequestHeaders.Add("Sec-Fetch-Site", "same-origin");
@@ -84,10 +84,12 @@ namespace DailyOrdersEmail.task
                 var loginData = new Dictionary<string, string>
                 {
                     { "email", username },
-                    { "password", password }
+                    { "password", password },
+                    { "redirect_url", "" },
+                    { "response", "json" }
                 };
 
-                var loginTask = client.PostAsync("/#login/login", new FormUrlEncodedContent(loginData));
+                var loginTask = client.PostAsync("/login/login", new FormUrlEncodedContent(loginData));
                 loginTask.Wait();
                 var loginResponse = loginTask.Result;
 
@@ -97,18 +99,8 @@ namespace DailyOrdersEmail.task
                     return;
                 }
 
-                string[] lines = File.ReadAllLines(@"C:\VIR\patikaman.ini");
-                string phpsessid = lines
-                    .Where(line => line.StartsWith("PHPSESSID=", StringComparison.OrdinalIgnoreCase))
-                    .Select(line => line.Substring("PHPSESSID=".Length).Trim())
-                    .FirstOrDefault();
-
-                string cookieHeader = $"PHPSESSID={phpsessid}";
-
                 client.DefaultRequestHeaders.Accept.Clear();
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/csv"));
-
-                client.DefaultRequestHeaders.Add("Cookie", cookieHeader);
 
                 var response = client.GetAsync(csvUrl + "/export").Result;
 
@@ -126,7 +118,7 @@ namespace DailyOrdersEmail.task
 
                 log.LogDebug("✅ CSV file downloaded and saved as downloaded3.csv");
                 CsvToHtmlTableConverter converter = new CsvToHtmlTableConverter(log);
-                converter.GenerateTable_1("downloaded3.csv", DateTime.Today);
+                converter.ParseCSV("downloaded3.csv", DateTime.Today);
             }
         }
 
@@ -208,7 +200,7 @@ namespace DailyOrdersEmail.task
                         string targetPath = Path.Combine(Directory.GetCurrentDirectory(), "downloaded2.csv");
                         File.Move(downloadedFile, targetPath, overwrite: true);
                         CsvToHtmlTableConverter converter = new CsvToHtmlTableConverter(log);
-                        converter.GenerateTable_1(targetPath, DateTime.Today);
+                        converter.ParseCSV(targetPath, DateTime.Today);
                     }
                 }
                 else
