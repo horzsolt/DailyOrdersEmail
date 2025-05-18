@@ -205,7 +205,7 @@ namespace DailyOrdersEmail.task
                     InsertSummary(sum_Rend_Unit, sum_Rabatt, sum_Turnover, htmlBuilder);
                     htmlBuilder.Append(htmlTableBuilder.ToString());
 
-                    Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
+                    //Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
                     Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
                     overall_OrderCount++;
                     overall_Turnover += sum_Turnover;

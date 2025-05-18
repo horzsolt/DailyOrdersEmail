@@ -30,15 +30,16 @@ namespace DailyOrdersEmail.service
             {
                 // Calculate the next 8 PM
                 var now = DateTime.Now;
-                var nextRun = now.Date.AddDays(now.Hour >= 18? 1 : 0).AddHours(19);
+                var nextRun = now.Date.AddDays(now.Hour >= 18? 1 : 0).AddHours(18);
+
+                // Skip Saturday and Sunday
+                while (nextRun.DayOfWeek == DayOfWeek.Saturday || nextRun.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    nextRun = nextRun.AddDays(1); // Move to next day until it's a weekday
+                }
+
                 var delay = nextRun - now;
-                
-
-                /*var now = DateTime.Now;
-                var nextRun = now.AddMinutes(2);
-                var delay = nextRun - now;*/
-
-
+ 
                 var readableDelay = $"{delay.Days} days, {delay.Hours} hours, {delay.Minutes} minutes, and {delay.Seconds} seconds";
                 log.LogInformation($"Next Patikaman task scheduled to run in: {readableDelay}");
 

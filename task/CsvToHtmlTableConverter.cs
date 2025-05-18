@@ -27,36 +27,66 @@ namespace DailyOrdersEmail.task
             public string Gyogyszertar { get; set; }
             public int Kedvezmeny { get; set; }
             public int Mennyiseg { get; set; }
-            public int CsomagDB { get; set; }
+            public float Kedv_ar { get; set; }
+            public float RendeltFt { get; set; }
         }
 
-        private int GetCsomagDB(string termeknev, SqlConnection connection)
+        private float GetPrice(string termeknev_kedv, SqlConnection connection)
         {
-            int csomagDB = 0;
+            float price = 0;
 
-            string query = "SELECT TOP 1 CSOMAG_DB FROM dbo.Patikaman WHERE CSOMAG_KEDV = @Termeknev";
+            string query = "SELECT TOP 1 KEDV_AR FROM dbo.Patikamanager WHERE Termékek_KEDV = @Termeknev";
             using (SqlCommand command = new SqlCommand(query, connection))
             {
-                command.Parameters.AddWithValue("@Termeknev", termeknev);
+                command.Parameters.AddWithValue("@Termeknev", termeknev_kedv);
                 using (SqlDataReader reader = command.ExecuteReader())
                 {
                     if (reader.Read())
                     {
-                        csomagDB = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                        price = reader.IsDBNull(0) ? 0f : (float)Math.Round(reader.GetDouble(0));
                     }
                 }
 
             }
 
-            if (csomagDB == 0)
+            if (price == 0)
             {
-                log.LogError($"No csomagDB found for termeknev: {termeknev}");
+                log.LogError($"No price found for termeknev: {termeknev_kedv}");
             }
             else
             {
-                log.LogDebug($"CsomagDB for {termeknev}: {csomagDB}");
+                log.LogDebug($"Price for {termeknev_kedv}: {price}");
             }
-            return csomagDB;
+            return price;
+        }
+
+        private string GetShortName(string termeknev_kedv, SqlConnection connection)
+        {
+            string shortName = "";
+
+            string query = "SELECT TOP 1 Termékek_rövidnév FROM dbo.Patikamanager WHERE Termékek_KEDV = @Termeknev";
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@Termeknev", termeknev_kedv);
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        shortName = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                    }
+                }
+
+            }
+
+            if (shortName == "")
+            {
+                log.LogError($"No shortname found for termeknev: {termeknev_kedv}");
+            }
+            else
+            {
+                log.LogDebug($"shortname for {termeknev_kedv}: {shortName}");
+            }
+            return shortName;
         }
 
         private Configuration GetEmailConfiguration()
@@ -129,24 +159,25 @@ namespace DailyOrdersEmail.task
 
                         rows.Add(new CsvRow
                         {
-                            Termeknev = parts[32].Trim('"'),
+                            Termeknev = GetShortName(parts[32].Trim('"') + "_" + ParseKedvezmeny(parts[35]), connection),
                             Rogzito = parts[4].Trim('"'),
                             Gyogyszertar = parts[3].Trim('"'),
                             Kedvezmeny = ParseKedvezmeny(parts[35]),
                             Mennyiseg = int.TryParse(parts[33], out var qty) ? qty : 0,
-                            CsomagDB = GetCsomagDB(parts[2].Trim('"') + "_" + ParseKedvezmeny(parts[35]), connection)
+                            Kedv_ar = GetPrice(parts[32].Trim('"') + "_" + ParseKedvezmeny(parts[35]), connection)
                         });
                     }
                 }
             }
 
             SendHtmlTableForProduct(rows, targetDate);
-            SendHtmlTableGroupedByRogzitoAndGyogyszertar(rows, targetDate);
+            //SendHtmlTableGroupedByRogzitoAndGyogyszertar(rows, targetDate);
         }
 
         private void SendHtmlTableForProduct(List<CsvRow> rows, DateTime targetDate)
         {
             int totalMennyiseg;
+            float totalPrice;
             StringBuilder sb = new StringBuilder();
 
             var grouped = rows
@@ -158,18 +189,13 @@ namespace DailyOrdersEmail.task
                         .Select(sg =>
                         {
                             int totalMennyiseg = sg.Sum(r => r.Mennyiseg);
-                            int csomagDb = sg.First().CsomagDB;
-
-                            double darabPerCsomag = csomagDb != 0
-                                ? (double)totalMennyiseg / csomagDb
-                                : 0;
+                            float kedv_Ar = sg.First().Kedv_ar;
 
                             return new
                             {
                                 Kedvezmeny = sg.Key,
                                 Mennyiseg = totalMennyiseg,
-                                CsomagDB = csomagDb,
-                                DarabPerCsomag = darabPerCsomag
+                                RendeltFt = kedv_Ar * totalMennyiseg,
                             };
                         })
                         .OrderByDescending(x => x.Mennyiseg)
@@ -190,6 +216,10 @@ namespace DailyOrdersEmail.task
 
 
             totalMennyiseg = rows.Sum(r => r.Mennyiseg);
+            totalPrice = grouped.Values
+                            .SelectMany(k => k)
+                            .Sum(x => x.RendeltFt);
+
 
             AddHeaderTermek(sb);
 
@@ -214,136 +244,20 @@ namespace DailyOrdersEmail.task
                 sb.Append("<td class='lowertablecell' align='right'>");
                 foreach (var pair in kvp.Value)
                 {
-                    sb.Append($"{pair.CsomagDB}<br>");
+                    sb.Append($"{string.Format("{0:C0}", pair.RendeltFt)}<br>");
                 }
                 sb.Append("</td>");
 
-                sb.Append("<td class='lowertablecell' align='right'>");
-                foreach (var pair in kvp.Value)
-                {
-                    sb.Append($"{pair.DarabPerCsomag}<br>");
-                }
-                sb.Append("</td>");
                 sb.AppendLine("</tr>");
             }
 
-            sb.AppendLine($"<tr class='lowertabletr'><td align='right'><strong>Összesen</strong></td><td></td><td align='right'><strong>{totalMennyiseg}</strong></td><td></td></tr>");
+            sb.AppendLine($"<tr class='lowertabletr'><td align='right'><strong>Összesen</strong></td><td></td><td align='right'><strong>{totalMennyiseg}</strong></td><td align='right'>{string.Format("{0:C0}", totalPrice)}</td></tr>");
             sb.AppendLine("</table>");
             AddFooter(sb);
 
             string subject = $"Napi Patikamanagement értesítő (termék) {targetDate.ToString("yyyy. MM. dd.")}";
-            Util.SendEmail(sb.ToString(), GetEmailConfiguration(), subject, totalMennyiseg + " db");
+            Util.SendEmail(sb.ToString(), GetEmailConfiguration(), subject, string.Format("{0:C0}", totalPrice));
         }
-
-        private void SendHtmlTableGroupedByRogzitoAndGyogyszertar(List<CsvRow> rows, DateTime targetDate)
-        {
-            int totalMennyiseg = rows.Sum(r => r.Mennyiseg);
-            StringBuilder sb = new StringBuilder();
-
-            var grouped = rows
-                .GroupBy(r => r.Rogzito)
-                .ToDictionary(
-                    rg => rg.Key,
-                    rg => rg
-                        .GroupBy(r => r.Gyogyszertar)
-                        .ToDictionary(
-                            gg => gg.Key,
-                            gg => gg
-                                .GroupBy(r => r.Termeknev)
-                                .ToDictionary(
-                                    tg => tg.Key,
-                                    tg =>
-                                    {
-                                        var kedvezmenyList = tg
-                                            .GroupBy(r => r.Kedvezmeny)
-                                            .Select(sg =>
-                                            {
-                                                int total = sg.Sum(r => r.Mennyiseg);
-                                                int csomagDb = sg.First().CsomagDB;
-                                                double darabPerCsomag = csomagDb != 0 ? (double)total / csomagDb : 0;
-
-                                                return new
-                                                {
-                                                    Kedvezmeny = sg.Key,
-                                                    Mennyiseg = total,
-                                                    CsomagDB = csomagDb,
-                                                    DarabPerCsomag = darabPerCsomag
-                                                };
-                                            })
-                                            .ToList();
-
-                                        return kedvezmenyList;
-                                    }
-                                )
-                        )
-                );
-
-
-            AddHeaderErtekesito(sb);
-
-            foreach (var rogzito in grouped)
-            {
-                foreach (var gyogyszertar in rogzito.Value)
-                {
-                    bool isFirst = true;
-                    foreach (var termek in gyogyszertar.Value
-                        .OrderByDescending(kvp => kvp.Value.Sum(x => x.Mennyiseg)))
-                    {
-                        if (isFirst)
-                        {
-                            sb.AppendLine("<tr class='lowertabletr'>");
-                            sb.Append($"<td class='lowertablecell' align='right'>{rogzito.Key}</td>");
-                            sb.Append($"<td class='lowertablecell' align='right'>{gyogyszertar.Key}</td>");
-                            isFirst = false;
-                        } else
-                        {
-                            sb.Append($"<td class='lowertablecell' align='right'></td>");
-                            sb.Append($"<td class='lowertablecell' align='right'></td>");
-                        }
-
-                        sb.Append($"<td class='lowertablecell' align='right'>{termek.Key}</td>");
-
-                        sb.Append("<td class='lowertablecell' align='right'>");
-                        foreach (var pair in termek.Value)
-                        {
-                            sb.Append($"{pair.Kedvezmeny} %<br>");
-                        }
-                        sb.Append("</td>");
-
-                        sb.Append("<td class='lowertablecell' align='right'>");
-                        foreach (var pair in termek.Value)
-                        {
-                            sb.Append($"{pair.Mennyiseg}<br>");
-                        }
-                        sb.Append("</td>");
-
-                        sb.Append("<td class='lowertablecell' align='right'>");
-                        foreach (var pair in termek.Value)
-                        {
-                            sb.Append($"{pair.CsomagDB}<br>");
-                        }
-                        sb.Append("</td>");
-
-                        sb.Append("<td class='lowertablecell' align='right'>");
-                        foreach (var pair in termek.Value)
-                        {
-                            sb.Append($"{pair.DarabPerCsomag}<br>");
-                        }
-                        sb.Append("</td>");
-                        sb.AppendLine("</tr>");
-                    }
-                }
-                
-            }
-
-            sb.AppendLine($"<tr class='lowertabletr'><td align='right' colspan='3'><strong>Összesen</strong></td><td></td><td align='right'><strong>{totalMennyiseg}</strong></td><td></td><td></td></tr>");
-            sb.AppendLine("</table>");
-            AddFooter(sb);
-
-            string subject = $"Napi Patikamanagement értesítő (REP) {targetDate:yyyy. MM. dd.}";
-            Util.SendEmail(sb.ToString(), GetEmailConfiguration(), subject, $"{totalMennyiseg} db");
-        }
-
 
         private int ParseKedvezmeny(string raw)
         {
@@ -352,37 +266,6 @@ namespace DailyOrdersEmail.task
                 return ((int)value);
             }
             return 0;
-        }
-
-        private void AddHeaderErtekesito(StringBuilder htmlBuilder)
-        {
-            htmlBuilder.Append("<!DOCTYPE html>");
-            htmlBuilder.Append("<html>");
-
-            htmlBuilder.Append("<head>");
-            htmlBuilder.Append("<style>");
-            htmlBuilder.Append(".uppertable {border: none;} ");
-            htmlBuilder.Append("table {border-collapse: collapse; } ");
-            htmlBuilder.Append("th { background: #6BAFBC; font-size:8.5pt;font-family:'Arial',sans-serif; padding: 1pt 1pt 1pt 1pt;} ");
-            htmlBuilder.Append("td { border: none; background: #FFFCF2; font-size:8.5pt;font-family:'Arial',sans-serif; padding: .75pt .75pt .75pt .75pt; } ");
-            htmlBuilder.Append("td.lowertablecell { border-bottom: 5px solid white; background: #FFFCF2; font-size: 8.5pt; font-family: 'Arial', sans-serif; padding: .75pt .75pt .75pt .75pt;}");
-            htmlBuilder.Append(".lowertabletr { border-bottom: 1px solid black; height: 30px;padding: 1pt 1pt 1pt 1pt; } ");
-            htmlBuilder.Append(".simpletd { border: none; font-size:8.5pt;font-family:'Arial',sans-serif; padding: .75pt .75pt .75pt .75pt; background: #FFFCF2; color:#333333;} ");
-            htmlBuilder.Append("tf { background: #6BAFBC; padding: .75pt .75pt .75pt .75pt; font-size:8.5pt;font-family:'Arial',sans-serif;color:#333333; margin-top:7.5pt;margin-right:0in;margin-bottom:15.0pt;margin-left:0in; } ");
-            htmlBuilder.Append("</style>");
-            htmlBuilder.Append("</head>");
-
-            htmlBuilder.Append($"<table cellspacing='0' cellpadding='0'>");
-
-            htmlBuilder.Append($"<tr class='lowertabletr'>");
-            htmlBuilder.Append($"<th>Rögzítő felhasználó</th>");
-            htmlBuilder.Append($"<th>Gyógyszertár</th>");
-            htmlBuilder.Append($"<th>Terméknév</th>");
-            htmlBuilder.Append($"<th>Kedvezmény</th>");
-            htmlBuilder.Append($"<th>Mennyiség</th>");
-            htmlBuilder.Append($"<th>Db/Csomag</th>");
-            htmlBuilder.Append($"<th>Csomag</th>");
-            htmlBuilder.Append("</tr>");
         }
 
         private void AddHeaderTermek(StringBuilder htmlBuilder)
@@ -409,8 +292,7 @@ namespace DailyOrdersEmail.task
             htmlBuilder.Append($"<th>Terméknév</th>");
             htmlBuilder.Append($"<th>Kedvezmény</th>");
             htmlBuilder.Append($"<th>Mennyiség</th>");
-            htmlBuilder.Append($"<th>Db/Csomag</th>");
-            htmlBuilder.Append($"<th>Csomag</th>");
+            htmlBuilder.Append($"<th>Rendelés Ft</th>");
             htmlBuilder.Append("</tr>");
         }
 
