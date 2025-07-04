@@ -88,9 +88,10 @@ namespace DailyOrdersEmail
                 return new MetricService(meterFactory, logger, serviceName, serviceVersion);
             });
 
-            appBuilder.Services.AddHostedService(sp =>
+            /*appBuilder.Services.AddHostedService(sp =>
                 new PatikaManService(sp.GetRequiredService<ILogger<PatikaManService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
                     .Where(t => t.GetType().GetCustomAttribute<PatikamanTaskAttribute>() != null)));
+            */
 
             appBuilder.Services.AddHostedService(sp =>
                 new MailSenderService(sp.GetRequiredService<ILogger<MailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
