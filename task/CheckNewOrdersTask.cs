@@ -1,7 +1,6 @@
 ﻿using System;
 using Microsoft.Data.SqlClient;
 using System.Diagnostics;
-using System.IO;
 using System.Text;
 using System.Data;
 using Microsoft.Extensions.Logging;

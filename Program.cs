@@ -88,18 +88,36 @@ namespace DailyOrdersEmail
                 return new MetricService(meterFactory, logger, serviceName, serviceVersion);
             });
 
-            /*appBuilder.Services.AddHostedService(sp =>
-                new PatikaManService(sp.GetRequiredService<ILogger<PatikaManService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
-                    .Where(t => t.GetType().GetCustomAttribute<PatikamanTaskAttribute>() != null)));
-            */
-
-            appBuilder.Services.AddHostedService(sp =>
+            // Production version
+            /*
+               appBuilder.Services.AddHostedService(sp =>
                 new MailSenderService(sp.GetRequiredService<ILogger<MailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
-                    .Where(t => t.GetType().GetCustomAttribute<CheckNewOrderTaskAttribute>() != null)));
+                    .Where(
+                    t => (t.GetType().GetCustomAttribute<CheckNewOrderTaskAttribute>() != null || t.GetType().GetCustomAttribute<DailyOrderSummaryTaskAttribute>() != null)
+                    )));
+
+               appBuilder.Services.AddHostedService(sp =>
+                new DailyTurnoverMailSenderService(sp.GetRequiredService<ILogger<DailyTurnoverMailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                    .Where(
+                    t => (t.GetType().GetCustomAttribute<DailyOrderSummaryTaskAttribute>() != null)
+                    )));
+            */
+            // End production version
+
+            // For testing
+            //appBuilder.Services.AddTransient<MailSenderService>();
+            appBuilder.Services.AddTransient(sp =>
+                new MailSenderService(sp.GetRequiredService<ILogger<MailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                    .Where(t => t.GetType().GetCustomAttribute<DailyOrderSummaryTaskAttribute>() != null)));
+
+            appBuilder.Services.AddTransient(sp =>
+                new DailyTurnoverMailSenderService(sp.GetRequiredService<ILogger<DailyTurnoverMailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                    .Where(t => t.GetType().GetCustomAttribute<DailyOrderSummaryTaskAttribute>() != null)));
 
             appBuilder.Services.AddSingleton(sp =>
                 new PatikaManService(sp.GetRequiredService<ILogger<PatikaManService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
                     .Where(t => t.GetType().GetCustomAttribute<PatikamanTaskAttribute>() != null)));
+
 
         }
         static void Main(string[] args)
@@ -136,8 +154,8 @@ namespace DailyOrdersEmail
                         {
                             logger.LogInformation("Starting the service in interactive mode.");
 
-                            var patikaService = serviceProvider.GetRequiredService<PatikaManService>();
-                            patikaService.StartAsConsole(null);
+                            var testService = serviceProvider.GetRequiredService<MailSenderService>();
+                            testService.StartAsConsole(null);
 
                         }
                         break;

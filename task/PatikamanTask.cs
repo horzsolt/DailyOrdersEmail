@@ -15,7 +15,6 @@ namespace DailyOrdersEmail.task
     [PatikamanTask]
     public class PatikamanTask(MetricService metricService, ILogger<PatikamanTask> log) : ServiceTask
     {
-        string csvFileName = "patikaman.csv";
 
         private void DownloadCsv_Http()
         {
