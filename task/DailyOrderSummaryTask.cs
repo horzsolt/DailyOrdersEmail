@@ -82,6 +82,7 @@ namespace DailyOrdersEmail.task
                 }
 
                 DateTime queryDate = config.TestMode ? new DateTime(2025, 10, 17) : DateTime.Today;
+                queryDate = new DateTime(2025, 10, 17);
 
                 query = @"
                     SELECT 
@@ -200,8 +201,6 @@ namespace DailyOrdersEmail.task
 
         private void AddRow(StringBuilder htmlBuilder, DataRow row)
         {
-            log.LogDebug($"Add row for {row.Field<string>("PARTNER_NEV")}");
-
             string strTurnOver = Math.Round(row.Field<decimal>("ARBEVETEL_NFT")).ToString("N0", new CultureInfo("hu-HU"));
 
             htmlBuilder.Append("<tr height='20px'>");
