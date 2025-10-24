@@ -81,8 +81,8 @@ namespace DailyOrdersEmail.task
                     }
                 }
 
-                DateTime queryDate = config.TestMode ? new DateTime(2025, 10, 17) : DateTime.Today;
-                queryDate = new DateTime(2025, 10, 17);
+                DateTime queryDate = DateTime.Today;
+                //queryDate = new DateTime(2025, 10, 17);
 
                 query = @"
                     SELECT 
@@ -119,6 +119,7 @@ namespace DailyOrdersEmail.task
             if (dataTable.Rows.Count == 0)
             {
                 log.LogInformation("No records found.");
+                return;
             }
 
             log.LogDebug($"Found {dataTable.Rows.Count} records.");
@@ -143,7 +144,7 @@ namespace DailyOrdersEmail.task
             string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
             string subject = $"Napvégi árbevétel értesítő";
 
-            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), "horvath.zsolt@goodwillpharma.com");
+            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover));
 
             metricService.DailyOrderSum = overall_Turnover;
             metricService.DailyOrderCount = orderCounter;
