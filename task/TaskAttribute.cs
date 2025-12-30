@@ -2,6 +2,7 @@
 
 namespace DailyOrdersEmail.task
 {
+
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
     public class DailyOrderSummaryTaskAttribute : Attribute { }
 

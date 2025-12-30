@@ -72,8 +72,8 @@ namespace DailyOrdersEmail.util
         {
             if (config.TestMode == true)
             {
-                log.Debug("Email sending is disabled in test mode.");
-                return;
+                log.Debug("Email sending to the default user in test mode.");
+                sendTo = Environment.GetEnvironmentVariable("VIR_PATIKAMAN_USERNAME");
             }
 
             try

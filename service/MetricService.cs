@@ -8,13 +8,27 @@ namespace DailyOrdersEmail.services
         private readonly Meter meter;
         private readonly Histogram<int> taskExecutionDuration;
         private readonly Histogram<int> dailyOrderSummaryTaskExecutionDuration;
+        private readonly Histogram<int> dailyScriptorOrderSummaryTaskExecutionDuration;
         private int jobExecutionStatus;
         private int dailyOrderSummaryJobExecutionStatus;
+        private int dailyScriptorOrderSummaryJobExecutionStatus;
         private int orderCount;
         private double orderSum;
         private int daily_orderCount;
         private double daily_orderSum;
         private readonly ILogger<MetricService> log;
+
+        public int DailyScriptorOrderSummaryJobExecutionStatus
+        {
+            get
+            {
+                return dailyScriptorOrderSummaryJobExecutionStatus;
+            }
+            set
+            {
+                dailyScriptorOrderSummaryJobExecutionStatus = value;
+            }
+        }
 
         public int DailyOrderSummaryJobExecutionStatus
         {
@@ -106,6 +120,26 @@ namespace DailyOrdersEmail.services
               name: "5pm_dailyturnover_job_execution_duration", unit: "seconds",
               description: "5pm daily turnover job execution duration in seconds.");
 
+            dailyScriptorOrderSummaryTaskExecutionDuration = meter.CreateHistogram<int>(
+              name: "5pm_daily_scriptor_turnover_job_execution_duration", unit: "seconds",
+              description: "5pm daily Scriptor turnover job execution duration in seconds.");
+
+            meter.CreateObservableGauge(
+                name: "dailyordersummary_job_execution_status",
+                unit: "value",
+                observeValue: () => new Measurement<int>(DailyOrderSummaryJobExecutionStatus),
+                description:
+                "The result code of the latest daily summary order checker job execution (0 = Failed, 1 = Succeeded)"
+            );
+
+            meter.CreateObservableGauge(
+                name: "dailyorderscriptor_summary_job_execution_status",
+                unit: "value",
+                observeValue: () => new Measurement<int>(DailyScriptorOrderSummaryJobExecutionStatus),
+                description:
+                "The result code of the latest daily Scriptor order summary checker job execution (0 = Failed, 1 = Succeeded)"
+            );
+
             meter.CreateObservableGauge(
                 name: "dailyorder_job_execution_status",
                 unit: "value",
@@ -153,6 +187,12 @@ namespace DailyOrdersEmail.services
         {
             log.LogDebug($"RecordDailyOrderSummaryJobExecutionDuration {duration}");
             dailyOrderSummaryTaskExecutionDuration.Record(duration);
+        }
+
+        public void RecordDailyScriptorOrderSummaryJobExecutionDuration(int duration)
+        {
+            log.LogDebug($"RecordDailyScriptorOrderSummaryJobExecutionDuration {duration}");
+            dailyScriptorOrderSummaryTaskExecutionDuration.Record(duration);
         }
     }
 }

@@ -101,17 +101,17 @@ namespace DailyOrdersEmail
                     .Where(
                     t => (t.GetType().GetCustomAttribute<DailyOrderSummaryTaskAttribute>() != null)
                     )));
-           
+               
             // End production version
 
             // For testing
             /*appBuilder.Services.AddTransient(sp =>
                 new MailSenderService(sp.GetRequiredService<ILogger<MailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
-                    .Where(t => t.GetType().GetCustomAttribute<DailyOrderSummaryTaskAttribute>() != null)));
+                    .Where(t => t.GetType().GetCustomAttribute<DailyScriptorOrderSummaryTaskAttribute>() != null)));
 
             appBuilder.Services.AddTransient(sp =>
                 new DailyTurnoverMailSenderService(sp.GetRequiredService<ILogger<DailyTurnoverMailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
-                    .Where(t => t.GetType().GetCustomAttribute<DailyOrderSummaryTaskAttribute>() != null)));
+                    .Where(t => t.GetType().GetCustomAttribute<DailyScriptorOrderSummaryTaskAttribute>() != null)));
             */
             // End testing.
             appBuilder.Services.AddSingleton(sp =>
