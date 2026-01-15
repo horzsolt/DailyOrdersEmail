@@ -246,8 +246,8 @@ namespace DailyOrdersEmail.task
 
             htmlBuilder.Append($"<tr class='lowertabletr'>");
             htmlBuilder.Append($"<td>{row.Field<string>("Termek")}</td>");
-            htmlBuilder.Append($"<td align='right' class='simpletd'>{row.Field<int>("Rabatt")} db</td>");
             htmlBuilder.Append($"<td align='right' class='simpletd'>{row.Field<int>("Unit")} db</td>");
+            htmlBuilder.Append($"<td align='right' class='simpletd'>{row.Field<int>("Rabatt")} db</td>");
             htmlBuilder.Append($"<td align='right' class='simpletd'>{strTurnOver} Ft</td>");
             htmlBuilder.Append("</tr>");
         }
