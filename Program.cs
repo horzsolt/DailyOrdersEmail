@@ -1,8 +1,5 @@
-﻿using DailyOrdersEmail.service;
-using DailyOrdersEmail.services;
-using DailyOrdersEmail.task;
-using DailyOrdersEmail.util;
-using log4net;
+﻿using OrderEmail.task;
+using OrderEmail.util;
 using log4net.Config;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,6 +8,7 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using OrderEmail.service;
 using System;
 using System.Collections.Generic;
 using System.Configuration.Install;
@@ -101,7 +99,13 @@ namespace DailyOrdersEmail
                     .Where(
                     t => (t.GetType().GetCustomAttribute<DailyOrderSummaryTaskAttribute>() != null)
                     )));
-               
+
+            appBuilder.Services.AddHostedService(sp =>
+                new WeeklyTurnoverMailSenderService(sp.GetRequiredService<ILogger<WeeklyTurnoverMailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                    .Where(
+                    t => (t.GetType().GetCustomAttribute<WeeklyOrderSummaryTaskAttribute>() != null)
+                )));
+
             // End production version
 
             // For testing

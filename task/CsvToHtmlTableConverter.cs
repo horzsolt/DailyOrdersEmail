@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DailyOrdersEmail.task
+namespace OrderEmail.task
 {
     using System.Collections.Generic;
     using System.Data;
@@ -8,7 +8,7 @@ namespace DailyOrdersEmail.task
     using System.IO;
     using System.Linq;
     using System.Text;
-    using DailyOrdersEmail.util;
+    using OrderEmail.util;
     using Microsoft.Extensions.Logging;
     using Microsoft.Data.SqlClient;
    

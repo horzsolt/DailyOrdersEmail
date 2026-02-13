@@ -1,4 +1,4 @@
-﻿namespace DailyOrdersEmail.task 
+﻿namespace OrderEmail.task 
 { 
     public interface ServiceTask
     {

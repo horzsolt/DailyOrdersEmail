@@ -7,7 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace DailyOrdersEmail.util
+namespace OrderEmail.util
 {
     public static class Util
     {

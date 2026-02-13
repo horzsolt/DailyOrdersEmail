@@ -4,10 +4,10 @@ using System.Diagnostics;
 using System.Text;
 using System.Data;
 using Microsoft.Extensions.Logging;
-using DailyOrdersEmail.services;
-using DailyOrdersEmail.util;
+using OrderEmail.util;
+using OrderEmail.service;
 
-namespace DailyOrdersEmail.task
+namespace OrderEmail.task
 {
     [CheckNewOrderTask]
     public class CheckNewOrdersTask(MetricService metricService, ILogger<CheckNewOrdersTask> log) : ServiceTask

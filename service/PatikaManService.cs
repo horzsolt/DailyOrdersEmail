@@ -6,9 +6,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Timers;
-using DailyOrdersEmail.task;
+using OrderEmail.task;
 
-namespace DailyOrdersEmail.service
+namespace OrderEmail.service
 {
     public class PatikaManService : BackgroundService //ServiceBase
     {

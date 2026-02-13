@@ -4,17 +4,17 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Collections.Generic;
-using OrderEmail.task;
 using System.Linq;
+using OrderEmail.task;
 
 namespace OrderEmail.service
 {
-    public class DailyTurnoverMailSenderService : BackgroundService
+    public class WeeklyTurnoverMailSenderService : BackgroundService
     {
         private readonly List<ServiceTask> tasks;
-        private readonly ILogger<DailyTurnoverMailSenderService> log;
+        private readonly ILogger<WeeklyTurnoverMailSenderService> log;
 
-        public DailyTurnoverMailSenderService(ILogger<DailyTurnoverMailSenderService> logger, IEnumerable<ServiceTask> taskList)
+        public WeeklyTurnoverMailSenderService(ILogger<WeeklyTurnoverMailSenderService> logger, IEnumerable<ServiceTask> taskList)
         {
             log = logger;
             tasks = taskList.ToList();
@@ -22,22 +22,32 @@ namespace OrderEmail.service
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            log.LogInformation("DailyTurnoverMailSenderService started.");
+            log.LogInformation("WeeklyTurnoverMailSenderService started.");
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     var now = DateTime.Now;
-                    var nextRun = new DateTime(now.Year, now.Month, now.Day, 16, 55, 0);
-                    if (now > nextRun)
-                        nextRun = nextRun.AddDays(1);
 
-                    while (nextRun.DayOfWeek == DayOfWeek.Saturday || nextRun.DayOfWeek == DayOfWeek.Sunday)
-                        nextRun = nextRun.AddDays(1);
+                    // Calculate next Friday 17:00
+                    int daysUntilFriday =
+                        ((int)DayOfWeek.Friday - (int)now.DayOfWeek + 7) % 7;
+
+                    var nextRun = now.Date
+                        .AddDays(daysUntilFriday)
+                        .AddHours(17);
+
+                    // If today is Friday and already past 17:00 → next week
+                    if (daysUntilFriday == 0 && now >= nextRun)
+                    {
+                        nextRun = nextRun.AddDays(7);
+                    }
 
                     var delay = nextRun - now;
-                    log.LogInformation($"Next execution scheduled for {nextRun} (in {delay.TotalMinutes:F0} minutes).");
+
+                    log.LogInformation(
+                        $"Next execution scheduled for {nextRun} (in {delay.TotalHours:F1} hours).");
 
                     await Task.Delay(delay, stoppingToken);
 
@@ -58,12 +68,12 @@ namespace OrderEmail.service
                 }
             }
 
-            log.LogInformation("DailyTurnoverMailSenderService stopped.");
+            log.LogInformation("WeeklyTurnoverMailSenderService stopped.");
         }
 
         private async Task ExecuteServiceTasks(CancellationToken stoppingToken)
         {
-            log.LogInformation($"[{DateTime.Now}] Starting daily turnover mail tasks.");
+            log.LogInformation($"[{DateTime.Now}] Starting weekly turnover mail tasks.");
 
             foreach (var task in tasks)
             {
@@ -76,15 +86,19 @@ namespace OrderEmail.service
                 try
                 {
                     task.ExecuteTask();
-                    log.LogInformation($"Task '{task.GetType().Name}' executed successfully.");
+                    log.LogInformation(
+                        $"Task '{task.GetType().Name}' executed successfully.");
                 }
                 catch (Exception ex)
                 {
-                    log.LogError(ex, $"Error while executing task '{task.GetType().Name}'.");
+                    log.LogError(
+                        ex,
+                        $"Error while executing task '{task.GetType().Name}'.");
                 }
             }
 
             await Task.CompletedTask;
         }
+
     }
 }

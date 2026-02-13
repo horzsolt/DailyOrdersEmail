@@ -1,14 +1,14 @@
-﻿using DailyOrdersEmail.services;
-using DailyOrdersEmail.util;
+﻿using OrderEmail.util;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using OrderEmail.service;
 using System;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 
-namespace DailyOrdersEmail.task
+namespace OrderEmail.task
 {
     [DailyOrderSummaryTask]
     public class DailyScriptorOrderSummaryTask(MetricService metricService, ILogger<DailyScriptorOrderSummaryTask> log) : ServiceTask

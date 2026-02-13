@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Diagnostics.Metrics;
 
-namespace DailyOrdersEmail.services
+//TODO: refactor this class and have MetricService for each different jobs
+namespace OrderEmail.service
 {
     public class MetricService
     {
@@ -9,13 +10,18 @@ namespace DailyOrdersEmail.services
         private readonly Histogram<int> taskExecutionDuration;
         private readonly Histogram<int> dailyOrderSummaryTaskExecutionDuration;
         private readonly Histogram<int> dailyScriptorOrderSummaryTaskExecutionDuration;
+        private readonly Histogram<int> weeklyOrderSummaryTaskExecutionDuration;
         private int jobExecutionStatus;
         private int dailyOrderSummaryJobExecutionStatus;
         private int dailyScriptorOrderSummaryJobExecutionStatus;
+        private int weeklyOrderSummaryJobExecutionStatus;
+        private int weeklyScriptorOrderSummaryJobExecutionStatus;
         private int orderCount;
         private double orderSum;
         private int daily_orderCount;
         private double daily_orderSum;
+        private int weekly_orderCount;
+        private double weekly_orderSum;
         private readonly ILogger<MetricService> log;
 
         public int DailyScriptorOrderSummaryJobExecutionStatus
@@ -39,6 +45,30 @@ namespace DailyOrdersEmail.services
             set
             {
                 dailyOrderSummaryJobExecutionStatus = value;
+            }
+        }
+
+        public int WeeklyScriptorOrderSummaryJobExecutionStatus
+        {
+            get
+            {
+                return weeklyScriptorOrderSummaryJobExecutionStatus;
+            }
+            set
+            {
+                weeklyScriptorOrderSummaryJobExecutionStatus = value;
+            }
+        }
+
+        public int WeeklyOrderSummaryJobExecutionStatus
+        {
+            get
+            {
+                return weeklyOrderSummaryJobExecutionStatus;
+            }
+            set
+            {
+                weeklyOrderSummaryJobExecutionStatus = value;
             }
         }
         public int JobExecutionStatus
@@ -101,6 +131,30 @@ namespace DailyOrdersEmail.services
             }
         }
 
+        public int WeeklyOrderCount
+        {
+            get
+            {
+                return weekly_orderCount;
+            }
+            set
+            {
+                weekly_orderCount = value;
+            }
+        }
+
+        public double WeeklyOrderSum
+        {
+            get
+            {
+                return weekly_orderSum;
+            }
+            set
+            {
+                weekly_orderSum = value;
+            }
+        }
+
         public MetricService(IMeterFactory meterFactory, ILogger<MetricService> logger, string serviceName, string serviceVersion)
         {
             JobExecutionStatus = 1;
@@ -108,6 +162,8 @@ namespace DailyOrdersEmail.services
             OrderSum = 0;
             DailyOrderCount = 0;
             DailyOrderSum = 0;
+            WeeklyOrderCount = 0;
+            WeeklyOrderSum = 0;
 
             log = logger;
             meter = meterFactory.Create(serviceName, serviceVersion);
@@ -120,9 +176,14 @@ namespace DailyOrdersEmail.services
               name: "5pm_dailyturnover_job_execution_duration", unit: "seconds",
               description: "5pm daily turnover job execution duration in seconds.");
 
+            weeklyOrderSummaryTaskExecutionDuration = meter.CreateHistogram<int>(
+              name: "weeklyturnover_job_execution_duration", unit: "seconds",
+              description: "weekly turnover job execution duration in seconds.");
+
             dailyScriptorOrderSummaryTaskExecutionDuration = meter.CreateHistogram<int>(
               name: "5pm_daily_scriptor_turnover_job_execution_duration", unit: "seconds",
               description: "5pm daily Scriptor turnover job execution duration in seconds.");
+
 
             meter.CreateObservableGauge(
                 name: "dailyordersummary_job_execution_status",
@@ -130,6 +191,14 @@ namespace DailyOrdersEmail.services
                 observeValue: () => new Measurement<int>(DailyOrderSummaryJobExecutionStatus),
                 description:
                 "The result code of the latest daily summary order checker job execution (0 = Failed, 1 = Succeeded)"
+            );
+
+            meter.CreateObservableGauge(
+                name: "weeklyordersummary_job_execution_status",
+                unit: "value",
+                observeValue: () => new Measurement<int>(WeeklyOrderSummaryJobExecutionStatus),
+                description:
+                "The result code of the latest weekly summary order checker job execution (0 = Failed, 1 = Succeeded)"
             );
 
             meter.CreateObservableGauge(
@@ -156,9 +225,23 @@ namespace DailyOrdersEmail.services
             );
 
             meter.CreateObservableGauge(
+                name: "weeklyorder_count",
+                unit: "orders",
+                observeValue: () => new Measurement<int>(WeeklyOrderCount),
+                description: "Daily order count."
+            );
+
+            meter.CreateObservableGauge(
                 name: "dailyorder_sum",
                 unit: "money",
                 observeValue: () => new Measurement<double>(OrderSum),
+                description: "Daily order summary value."
+            );
+
+            meter.CreateObservableGauge(
+                name: "weeklyorder_sum",
+                unit: "money",
+                observeValue: () => new Measurement<double>(WeeklyOrderSum),
                 description: "Daily order summary value."
             );
 
@@ -187,6 +270,12 @@ namespace DailyOrdersEmail.services
         {
             log.LogDebug($"RecordDailyOrderSummaryJobExecutionDuration {duration}");
             dailyOrderSummaryTaskExecutionDuration.Record(duration);
+        }
+
+        public void RecordWeeklyOrderSummaryJobExecutionDuration(int duration)
+        {
+            log.LogDebug($"RecordWeeklyOrderSummaryJobExecutionDuration {duration}");
+            weeklyOrderSummaryTaskExecutionDuration.Record(duration);
         }
 
         public void RecordDailyScriptorOrderSummaryJobExecutionDuration(int duration)

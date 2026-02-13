@@ -10,12 +10,12 @@ using System.Text;
 
 namespace OrderEmail.task
 {
-    [DailyOrderSummaryTask]
-    public class DailyOrderSummaryTask(MetricService metricService, ILogger<DailyOrderSummaryTask> log) : ServiceTask
+    [WeeklyOrderSummaryTask]
+    public class WeeklyOrderSummaryTask(MetricService metricService, ILogger<WeeklyOrderSummaryTask> log) : ServiceTask
     {
         public void ExecuteTask()
         {
-            log.LogInformation("5pm email sender scheduled run started.");
+            log.LogInformation("Weekly email sender scheduled run started.");
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
@@ -25,14 +25,14 @@ namespace OrderEmail.task
             }
             catch (Exception ex)
             {
-                metricService.DailyOrderSummaryJobExecutionStatus = 0;
+                metricService.WeeklyOrderSummaryJobExecutionStatus = 0;
                 log.LogError($"Error: {ex}");
             }
 
             log.LogInformation("Scheduled run finished.");
             stopwatch.Stop();
-            metricService.DailyOrderSummaryJobExecutionStatus = 1;
-            metricService.RecordDailyOrderSummaryJobExecutionDuration(Convert.ToInt32(stopwatch.Elapsed.TotalSeconds));
+            metricService.WeeklyOrderSummaryJobExecutionStatus = 1;
+            metricService.RecordWeeklyOrderSummaryJobExecutionDuration(Convert.ToInt32(stopwatch.Elapsed.TotalSeconds));
             log.LogInformation($"Elapsed Time: {stopwatch.Elapsed.Hours} hours, {stopwatch.Elapsed.Minutes} minutes, {stopwatch.Elapsed.Seconds} seconds");
         }
 
@@ -74,15 +74,22 @@ namespace OrderEmail.task
                         }
                         else
                         {
-                            metricService.DailyOrderSummaryJobExecutionStatus = 0;
+                            metricService.WeeklyOrderSummaryJobExecutionStatus = 0;
                             log.LogError("No records found in the DailyOrderMailConfig table.");
                             return;
                         }
                     }
                 }
 
-                DateTime queryDate = DateTime.Today;
-                //queryDate = new DateTime(2025, 10, 17);
+                DateTime now = DateTime.Now;
+
+                // Find Monday of the current week
+                int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
+                DateTime monday = now.Date.AddDays(-diff);
+
+                // Apply time offsets
+                DateTime weekStart = monday.AddHours(5);   // Monday 05:00
+                DateTime weekEnd = monday.AddDays(4).AddHours(17); // Friday 17:00
 
                 query = @"
                     SELECT 
@@ -93,7 +100,8 @@ namespace OrderEmail.task
                     WHERE
                         BELSO_PARTNER = 'N'
                         AND ERT_TIPUS = 'Termék'
-                        AND BIZONYLAT_DATUM = @BizDatum
+                        AND BIZONYLAT_DATUM >= @WeekStart
+                        AND BIZONYLAT_DATUM <= @WeekEnd
                     GROUP BY
                         PARTNER_NEV,
                         PARTNER_HELYSEG
@@ -102,8 +110,11 @@ namespace OrderEmail.task
 
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.Add("@BizDatum", SqlDbType.Date).Value = queryDate;
+                    command.Parameters.Add("@WeekStart", SqlDbType.DateTime).Value = weekStart;
+                    command.Parameters.Add("@WeekEnd", SqlDbType.DateTime).Value = weekEnd;
+
                     command.CommandTimeout = 500;
+
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
                         DataTable dataTable = new DataTable();
@@ -142,12 +153,12 @@ namespace OrderEmail.task
             AddFooter(htmlBuilder);
 
             string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
-            string subject = $"Napvégi árbevétel értesítő";
+            string subject = $"Hétvégi árbevétel értesítő";
 
-            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover));
+            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), "horzsolt2006@gmail.com");
 
-            metricService.DailyOrderSum = overall_Turnover;
-            metricService.DailyOrderCount = orderCounter;
+            metricService.WeeklyOrderSum = overall_Turnover;
+            metricService.WeeklyOrderCount = orderCounter;
 
             log.LogDebug($"Reporting metrics, orderSum: {overall_Turnover}, orderCount: {orderCounter}.");
         }

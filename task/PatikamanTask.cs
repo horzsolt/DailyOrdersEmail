@@ -1,5 +1,4 @@
-﻿using DailyOrdersEmail.services;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using System.IO;
 using System;
 using System.Diagnostics;
@@ -7,9 +6,9 @@ using System.Net.Http;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Collections.Generic;
-using System.Globalization;
+using OrderEmail.service;
 
-namespace DailyOrdersEmail.task
+namespace OrderEmail.task
 {
 
     [PatikamanTask]

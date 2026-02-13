@@ -4,10 +4,10 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Collections.Generic;
-using DailyOrdersEmail.task;
+using OrderEmail.task;
 using System.Linq;
 
-namespace DailyOrdersEmail.service
+namespace OrderEmail.service
 {
     public class MailSenderService : BackgroundService
     {
