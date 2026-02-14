@@ -110,7 +110,7 @@ namespace OrderEmail.task
                     command.Parameters.Add("@MonthStart", SqlDbType.DateTime).Value = monthStart;
                     command.Parameters.Add("@MonthEnd", SqlDbType.DateTime).Value = monthEnd;
 
-                    command.CommandTimeout = 5000;
+                    command.CommandTimeout = 0;
 
                     log.LogInformation(
                         @"Executing SQL:
@@ -173,6 +173,7 @@ namespace OrderEmail.task
 
             metricService.MonthlyOrderSum = overall_Turnover;
             metricService.MonthlyOrderCount = orderCounter;
+            metricService.MarkMonthlyOrderSummaryJobSuccess();
 
             log.LogDebug($"Reporting metrics, orderSum: {overall_Turnover}, orderCount: {orderCounter}.");
         }

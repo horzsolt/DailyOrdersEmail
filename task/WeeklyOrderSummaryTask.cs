@@ -114,15 +114,15 @@ namespace OrderEmail.task
                     command.Parameters.Add("@WeekStart", SqlDbType.DateTime).Value = weekStart;
                     command.Parameters.Add("@WeekEnd", SqlDbType.DateTime).Value = weekEnd;
 
-                    command.CommandTimeout = 5000;
+                    command.CommandTimeout = 0;
 
                     log.LogInformation(
                         @"Executing SQL:
                         {Query}
 
                         Parameters:
-                        @MonthStart = {MonthStart:yyyy-MM-dd HH:mm:ss}
-                        @MonthEnd   = {MonthEnd:yyyy-MM-dd HH:mm:ss}",
+                        @WeekStart = {WeekStart:yyyy-MM-dd HH:mm:ss}
+                        @WeekEnd   = {WeekEnd:yyyy-MM-dd HH:mm:ss}",
                         query,
                         weekStart,
                         weekEnd);

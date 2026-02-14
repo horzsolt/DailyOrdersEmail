@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Diagnostics.Metrics;
 
 //TODO: refactor this class and have MetricService for each different jobs
@@ -17,6 +18,7 @@ namespace OrderEmail.service
         private int dailyScriptorOrderSummaryJobExecutionStatus;
         private int weeklyOrderSummaryJobExecutionStatus;
         private long weeklyOrderLastSuccessTimestamp;
+        private long monthlyOrderLastSuccessTimestamp;
         private int monthlyOrderSummaryJobExecutionStatus;
         private int weeklyScriptorOrderSummaryJobExecutionStatus;
         private int orderCount;
@@ -85,7 +87,17 @@ namespace OrderEmail.service
                 "Weekly order summary job succeeded at {Timestamp}",
                 weeklyOrderLastSuccessTimestamp
             );
-        }        
+        }
+
+        public void MarkMonthlyOrderSummaryJobSuccess()
+        {
+            monthlyOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            log.LogInformation(
+                "Monthly order summary job succeeded at {Timestamp}",
+                monthlyOrderLastSuccessTimestamp
+            );
+        }
 
         public int MonthlyOrderSummaryJobExecutionStatus
         {
@@ -221,6 +233,7 @@ namespace OrderEmail.service
             WeeklyOrderSummaryJobExecutionStatus = 0;
             MonthlyOrderSummaryJobExecutionStatus = 0;
             weeklyOrderLastSuccessTimestamp = 0;
+            monthlyOrderLastSuccessTimestamp = 0;
 
             log = logger;
             meter = meterFactory.Create(serviceName, serviceVersion);
@@ -267,6 +280,13 @@ namespace OrderEmail.service
                 unit: "seconds",
                 observeValue: () => new Measurement<long>(weeklyOrderLastSuccessTimestamp),
                 description: "Unix timestamp (seconds) of the last successful weekly order summary job execution."
+            );
+
+            meter.CreateObservableGauge(
+                name: "monthlyorder_last_success_timestamp_seconds",
+                unit: "seconds",
+                observeValue: () => new Measurement<long>(monthlyOrderLastSuccessTimestamp),
+                description: "Unix timestamp (seconds) of the last successful monthly order summary job execution."
             );
 
             meter.CreateObservableGauge(
