@@ -38,6 +38,8 @@
     <Copyright>Copyright ©  2024</Copyright>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
+    <PackageId>DailyOrdersEmail</PackageId>
+    <AssemblyName>DailyOrdersEmail</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <Compile Update="MailSenderService.cs" />

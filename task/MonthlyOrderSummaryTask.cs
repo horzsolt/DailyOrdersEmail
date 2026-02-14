@@ -11,12 +11,12 @@ using System.Text;
 
 namespace OrderEmail.task
 {
-    [WeeklyOrderSummaryTask]
-    public class WeeklyOrderSummaryTask(MetricService metricService, ILogger<WeeklyOrderSummaryTask> log) : ServiceTask
+    [MonthlyOrderSummaryTask]
+    public class MonthlyOrderSummaryTask(MetricService metricService, ILogger<MonthlyOrderSummaryTask> log) : ServiceTask
     {
         public void ExecuteTask()
         {
-            log.LogInformation("Weekly email sender scheduled run started.");
+            log.LogInformation("Monthly email sender scheduled run started.");
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
@@ -26,14 +26,14 @@ namespace OrderEmail.task
             }
             catch (Exception ex)
             {
-                metricService.WeeklyOrderSummaryJobExecutionStatus = 0;
+                metricService.MonthlyOrderSummaryJobExecutionStatus = 0;
                 log.LogError($"Error: {ex}");
             }
 
             log.LogInformation("Scheduled run finished.");
             stopwatch.Stop();
-            metricService.WeeklyOrderSummaryJobExecutionStatus = 1;
-            metricService.RecordWeeklyOrderSummaryJobExecutionDuration(Convert.ToInt32(stopwatch.Elapsed.TotalSeconds));
+            metricService.MonthlyOrderSummaryJobExecutionStatus = 1;
+            metricService.RecordMonthlyOrderSummaryJobExecutionDuration(Convert.ToInt32(stopwatch.Elapsed.TotalSeconds));
             log.LogInformation($"Elapsed Time: {stopwatch.Elapsed.Hours} hours, {stopwatch.Elapsed.Minutes} minutes, {stopwatch.Elapsed.Seconds} seconds");
         }
 
@@ -75,7 +75,7 @@ namespace OrderEmail.task
                         }
                         else
                         {
-                            metricService.WeeklyOrderSummaryJobExecutionStatus = 0;
+                            metricService.MonthlyOrderSummaryJobExecutionStatus = 0;
                             log.LogError("No records found in the DailyOrderMailConfig table.");
                             return;
                         }
@@ -83,14 +83,10 @@ namespace OrderEmail.task
                 }
 
                 DateTime now = DateTime.Now;
-
-                // Find Monday of the current week
-                int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
-                DateTime monday = now.Date.AddDays(-diff);
-
-                // Apply time offsets Monday 5:00 - Friday 17:00
-                DateTime weekStart = monday.AddHours(5);
-                DateTime weekEnd = monday.AddDays(4).AddHours(17);
+                DateTime monthStart = new DateTime(now.Year, now.Month, 1);
+                DateTime monthEnd = monthStart
+                    .AddMonths(1)
+                    .AddTicks(-1);
 
                 query = @"
                     SELECT 
@@ -101,8 +97,8 @@ namespace OrderEmail.task
                     WHERE
                         BELSO_PARTNER = 'N'
                         AND ERT_TIPUS = 'Termék'
-                        AND BIZONYLAT_DATUM >= @WeekStart
-                        AND BIZONYLAT_DATUM <= @WeekEnd
+                        AND BIZONYLAT_DATUM >= @MonthStart
+                        AND BIZONYLAT_DATUM <= @MonthEnd
                     GROUP BY
                         PARTNER_NEV,
                         PARTNER_HELYSEG
@@ -111,8 +107,8 @@ namespace OrderEmail.task
 
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.Add("@WeekStart", SqlDbType.DateTime).Value = weekStart;
-                    command.Parameters.Add("@WeekEnd", SqlDbType.DateTime).Value = weekEnd;
+                    command.Parameters.Add("@MonthStart", SqlDbType.DateTime).Value = monthStart;
+                    command.Parameters.Add("@MonthEnd", SqlDbType.DateTime).Value = monthEnd;
 
                     command.CommandTimeout = 5000;
 
@@ -124,20 +120,20 @@ namespace OrderEmail.task
                         @MonthStart = {MonthStart:yyyy-MM-dd HH:mm:ss}
                         @MonthEnd   = {MonthEnd:yyyy-MM-dd HH:mm:ss}",
                         query,
-                        weekStart,
-                        weekEnd);
+                        monthStart,
+                        monthEnd);
 
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
                         DataTable dataTable = new DataTable();
                         dataTable.Load(reader);
-                        GenerateHtmlEmail(dataTable, config, weekStart, weekEnd);
+                        GenerateHtmlEmail(dataTable, config, monthStart, monthEnd);
                     }
                 }
             }
         }
 
-        private void GenerateHtmlEmail(DataTable dataTable, Configuration config, DateTime weekStart, DateTime weekEnd)
+        private void GenerateHtmlEmail(DataTable dataTable, Configuration config, DateTime monthStart, DateTime monthEnd)
         {
             if (dataTable.Rows.Count == 0)
             {
@@ -154,10 +150,10 @@ namespace OrderEmail.task
             double overall_Turnover = dataTable.AsEnumerable()
                 .Sum(row => Convert.ToDouble(row["ARBEVETEL_NFT"]));
 
-            string weekStartDate = weekStart.ToString("yyyy-MM-dd");
-            string weekEndDate = weekEnd.ToString("yyyy-MM-dd");
+            string monthStartDate = monthStart.ToString("yyyy-MM-dd");
+            string monthEndDate = monthEnd.ToString("yyyy-MM-dd");
 
-            AddHeader(htmlBuilder, weekStartDate, weekEndDate, overall_Turnover);
+            AddHeader(htmlBuilder, monthStartDate, monthEndDate, overall_Turnover);
 
             foreach (DataRow row in dataTable.Rows)
             {
@@ -169,14 +165,14 @@ namespace OrderEmail.task
             AddSummary(overall_Turnover, htmlBuilder);
             AddFooter(htmlBuilder);
 
-            string subject = $"Hétvégi árbevétel értesítő ({weekStartDate} – {weekEndDate})";
+            string subject = $"Hóvégi árbevétel értesítő ({monthStartDate} – {monthEndDate})";
 
             string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
 
             Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), "horvath.zsolt@goodwillpharma.com");
 
-            metricService.WeeklyOrderSum = overall_Turnover;
-            metricService.WeeklyOrderCount = orderCounter;
+            metricService.MonthlyOrderSum = overall_Turnover;
+            metricService.MonthlyOrderCount = orderCounter;
 
             log.LogDebug($"Reporting metrics, orderSum: {overall_Turnover}, orderCount: {orderCounter}.");
         }
@@ -203,7 +199,7 @@ namespace OrderEmail.task
             htmlBuilder.Append("</html>");
         }
 
-        private void AddHeader(StringBuilder htmlBuilder, string weekStartDate, string weekEndDate, double sum_Turnover)
+        private void AddHeader(StringBuilder htmlBuilder, string monthStartDate, string monthEndDate, double sum_Turnover)
         {
 
             string strTurnOver = Math.Round(sum_Turnover).ToString("N0", new CultureInfo("hu-HU"));
@@ -231,8 +227,8 @@ namespace OrderEmail.task
             htmlBuilder.Append("</tr>");
             htmlBuilder.Append("<tr height='20px'>");
             htmlBuilder.Append($"<td></td>");
-            htmlBuilder.Append($"<td class='simpletd'><b>{weekStartDate}</b></td>");
-            htmlBuilder.Append($"<td class='simpletd'><b>{weekEndDate}</b></td>");
+            htmlBuilder.Append($"<td class='simpletd'><b>{monthStartDate}</b></td>");
+            htmlBuilder.Append($"<td class='simpletd'><b>{monthEndDate}</b></td>");
             htmlBuilder.Append("</tr>");
             htmlBuilder.Append($"<tr class='lowertabletr'>");
             htmlBuilder.Append($"<td></td>");

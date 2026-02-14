@@ -3,6 +3,9 @@
 namespace OrderEmail.task
 {
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
+    public class MonthlyOrderSummaryTaskAttribute : Attribute { }
+
+    [AttributeUsage(AttributeTargets.Class, Inherited = false)]
     public class WeeklyOrderSummaryTaskAttribute : Attribute { }
 
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]

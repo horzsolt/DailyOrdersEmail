@@ -14,10 +14,37 @@ namespace OrderEmail.service
         private readonly List<ServiceTask> tasks;
         private readonly ILogger<WeeklyTurnoverMailSenderService> log;
 
+        private static readonly DayOfWeek RunDay = DayOfWeek.Sunday;
+        private static readonly TimeSpan RunTime = new TimeSpan(9, 37, 0);
+
+        public string GetInfo()
+        {
+            return $"{tasks.Count} tasks";
+        }
         public WeeklyTurnoverMailSenderService(ILogger<WeeklyTurnoverMailSenderService> logger, IEnumerable<ServiceTask> taskList)
         {
             log = logger;
+            log.LogInformation("WeeklyTurnoverMailSenderService instantiated.");
             tasks = taskList.ToList();
+            log.LogInformation($"{tasks.Count} tasks");
+        }
+
+        private static DateTime GetNextRun(DateTime now, DayOfWeek runDay, TimeSpan runTime)
+        {
+            int daysUntilRun =
+                ((int)runDay - (int)now.DayOfWeek + 7) % 7;
+
+            DateTime nextRun = now.Date
+                .AddDays(daysUntilRun)
+                .Add(runTime);
+
+            // If today is the run day but the time already passed → next week
+            if (daysUntilRun == 0 && now >= nextRun)
+            {
+                nextRun = nextRun.AddDays(7);
+            }
+
+            return nextRun;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -28,26 +55,15 @@ namespace OrderEmail.service
             {
                 try
                 {
-                    var now = DateTime.Now;
+                    DateTime now = DateTime.Now;
+                    DateTime nextRun = GetNextRun(now, RunDay, RunTime);
 
-                    // Calculate next Friday 17:00
-                    int daysUntilFriday =
-                        ((int)DayOfWeek.Friday - (int)now.DayOfWeek + 7) % 7;
-
-                    var nextRun = now.Date
-                        .AddDays(daysUntilFriday)
-                        .AddHours(17);
-
-                    // If today is Friday and already past 17:00 → next week
-                    if (daysUntilFriday == 0 && now >= nextRun)
-                    {
-                        nextRun = nextRun.AddDays(7);
-                    }
-
-                    var delay = nextRun - now;
+                    TimeSpan delay = nextRun - now;
 
                     log.LogInformation(
-                        $"Next execution scheduled for {nextRun} (in {delay.TotalHours:F1} hours).");
+                        "Next weekly execution scheduled for {NextRun} (in {Hours:F1} hours).",
+                        nextRun,
+                        delay.TotalHours);
 
                     await Task.Delay(delay, stoppingToken);
 

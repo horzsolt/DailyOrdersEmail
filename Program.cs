@@ -25,6 +25,7 @@ namespace DailyOrdersEmail
         private static readonly String serviceVersion = "1.0.0";
         private static void ConfigureServices(HostApplicationBuilder appBuilder)
         {
+
             appBuilder.Services.AddWindowsService(options =>
             {
                 options.ServiceName = serviceName;
@@ -69,6 +70,9 @@ namespace DailyOrdersEmail
                 builder.AddLog4Net(log4NetConfigFilePath);
             });
 
+            var serviceProvider = appBuilder.Services.BuildServiceProvider();
+            var log = serviceProvider.GetRequiredService<ILogger<Program>>();
+
             var assembly = Assembly.GetExecutingAssembly();
 
             var serviceTasks = assembly.GetTypes()
@@ -87,24 +91,55 @@ namespace DailyOrdersEmail
             });
 
             // Production version
-            
-               appBuilder.Services.AddHostedService(sp =>
-                new MailSenderService(sp.GetRequiredService<ILogger<MailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
-                    .Where(
-                    t => (t.GetType().GetCustomAttribute<CheckNewOrderTaskAttribute>() != null)
-                    )));
 
-               appBuilder.Services.AddHostedService(sp =>
-                new DailyTurnoverMailSenderService(sp.GetRequiredService<ILogger<DailyTurnoverMailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
-                    .Where(
-                    t => (t.GetType().GetCustomAttribute<DailyOrderSummaryTaskAttribute>() != null)
-                    )));
+            try
+            {
+                appBuilder.Services.AddHostedService(sp =>
+                 new MailSenderService(sp.GetRequiredService<ILogger<MailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                     .Where(
+                     t => (t.GetType().GetCustomAttribute<CheckNewOrderTaskAttribute>() != null)
+                     )));
 
-            appBuilder.Services.AddHostedService(sp =>
+                appBuilder.Services.AddHostedService(sp =>
+                 new DailyTurnoverMailSenderService(sp.GetRequiredService<ILogger<DailyTurnoverMailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                     .Where(
+                     t => (t.GetType().GetCustomAttribute<DailyOrderSummaryTaskAttribute>() != null)
+                     )));
+
+                appBuilder.Services.AddHostedService(sp =>
+                {
+                    var service = new WeeklyTurnoverMailSenderService(
+                        sp.GetRequiredService<ILogger<WeeklyTurnoverMailSenderService>>(),
+                        sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                            .Where(t =>
+                                t.GetType().GetCustomAttribute<WeeklyOrderSummaryTaskAttribute>() != null)
+                    );
+
+                    return service;
+                });
+
+                appBuilder.Services.AddHostedService(sp =>
+                {
+                    var service = new MonthlyTurnoverMailSenderService(
+                        sp.GetRequiredService<ILogger<MonthlyTurnoverMailSenderService>>(),
+                        sp.GetRequiredService<IEnumerable<ServiceTask>>()
+                            .Where(t =>
+                                t.GetType().GetCustomAttribute<MonthlyOrderSummaryTaskAttribute>() != null)
+                    );
+
+                    return service;
+                });
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex.ToString());
+            }
+
+            /*appBuilder.Services.AddHostedService(sp =>
                 new WeeklyTurnoverMailSenderService(sp.GetRequiredService<ILogger<WeeklyTurnoverMailSenderService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
                     .Where(
                     t => (t.GetType().GetCustomAttribute<WeeklyOrderSummaryTaskAttribute>() != null)
-                )));
+                )));*/
 
             // End production version
 
@@ -121,8 +156,6 @@ namespace DailyOrdersEmail
             appBuilder.Services.AddSingleton(sp =>
                 new PatikaManService(sp.GetRequiredService<ILogger<PatikaManService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
                     .Where(t => t.GetType().GetCustomAttribute<PatikamanTaskAttribute>() != null)));
-
-
         }
         static void Main(string[] args)
         {
@@ -139,6 +172,9 @@ namespace DailyOrdersEmail
             logger.LogInformation("Application started.");
             logger.LogDebug("Framework: " + FRWK.GetEnvironmentVersion() + " " + FRWK.GetTargetFrameworkName() + " " + FRWK.GetFrameworkDescription());
 
+            var hostedServices = appBuilder.Services
+                .Where(d => d.ServiceType == typeof(IHostedService))
+                .ToList();
 
             if (Environment.UserInteractive)
             {
