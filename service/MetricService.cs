@@ -16,6 +16,7 @@ namespace OrderEmail.service
         private int dailyOrderSummaryJobExecutionStatus;
         private int dailyScriptorOrderSummaryJobExecutionStatus;
         private int weeklyOrderSummaryJobExecutionStatus;
+        private long weeklyOrderLastSuccessTimestamp;
         private int monthlyOrderSummaryJobExecutionStatus;
         private int weeklyScriptorOrderSummaryJobExecutionStatus;
         private int orderCount;
@@ -75,6 +76,16 @@ namespace OrderEmail.service
                 weeklyOrderSummaryJobExecutionStatus = value;
             }
         }
+
+        public void MarkWeeklyOrderSummaryJobSuccess()
+        {
+            weeklyOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        
+            log.LogInformation(
+                "Weekly order summary job succeeded at {Timestamp}",
+                weeklyOrderLastSuccessTimestamp
+            );
+        }        
 
         public int MonthlyOrderSummaryJobExecutionStatus
         {
@@ -209,6 +220,7 @@ namespace OrderEmail.service
             MonthlyOrderSum = 0;
             WeeklyOrderSummaryJobExecutionStatus = 0;
             MonthlyOrderSummaryJobExecutionStatus = 0;
+            weeklyOrderLastSuccessTimestamp = 0;
 
             log = logger;
             meter = meterFactory.Create(serviceName, serviceVersion);
@@ -248,6 +260,13 @@ namespace OrderEmail.service
                 observeValue: () => new Measurement<int>(WeeklyOrderSummaryJobExecutionStatus),
                 description:
                 "The result code of the latest weekly summary order checker job execution (0 = Failed, 1 = Succeeded)"
+            );
+
+            meter.CreateObservableGauge(
+                name: "weeklyorder_last_success_timestamp_seconds",
+                unit: "seconds",
+                observeValue: () => new Measurement<long>(weeklyOrderLastSuccessTimestamp),
+                description: "Unix timestamp (seconds) of the last successful weekly order summary job execution."
             );
 
             meter.CreateObservableGauge(
