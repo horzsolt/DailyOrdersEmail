@@ -177,6 +177,7 @@ namespace OrderEmail.task
 
             metricService.WeeklyOrderSum = overall_Turnover;
             metricService.WeeklyOrderCount = orderCounter;
+            metricService.MarkWeeklyOrderSummaryJobSuccess();
 
             log.LogDebug($"Reporting metrics, orderSum: {overall_Turnover}, orderCount: {orderCounter}.");
         }
