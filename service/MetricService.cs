@@ -79,6 +79,25 @@ namespace OrderEmail.service
             }
         }
 
+        public long InitWeeklyExecutionTimestamp()
+        {
+            DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+
+            int daysSinceFriday =
+                ((int)nowUtc.DayOfWeek - (int)DayOfWeek.Friday + 7) % 7;
+
+            // If today is Friday, go back one full week
+            if (daysSinceFriday == 0)
+                daysSinceFriday = 7;
+
+            DateTimeOffset previousFriday =
+                nowUtc.Date
+                      .AddDays(-daysSinceFriday)
+                      .AddHours(17)
+                      .AddMinutes(10);
+
+            return previousFriday.ToUnixTimeSeconds();
+        }
         public void MarkWeeklyOrderSummaryJobSuccess()
         {
             weeklyOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -87,6 +106,30 @@ namespace OrderEmail.service
                 "Weekly order summary job succeeded at {Timestamp}",
                 weeklyOrderLastSuccessTimestamp
             );
+        }
+
+        public long InitMonthlyExecutionTimestamp()
+        {
+            DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+
+            // First day of current month (UTC)
+            DateTimeOffset firstDayOfCurrentMonth =
+                new DateTimeOffset(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, TimeSpan.Zero);
+
+            // Last day of previous month
+            DateTimeOffset lastDayPrevMonth =
+                firstDayOfCurrentMonth.AddDays(-1);
+
+            // Weekend adjustment → Friday
+            if (lastDayPrevMonth.DayOfWeek == DayOfWeek.Saturday)
+                lastDayPrevMonth = lastDayPrevMonth.AddDays(-1);
+            else if (lastDayPrevMonth.DayOfWeek == DayOfWeek.Sunday)
+                lastDayPrevMonth = lastDayPrevMonth.AddDays(-2);
+
+            DateTimeOffset executionTime =
+                lastDayPrevMonth.Date.AddHours(17).AddMinutes(32);
+
+            return executionTime.ToUnixTimeSeconds();
         }
 
         public void MarkMonthlyOrderSummaryJobSuccess()
@@ -232,8 +275,8 @@ namespace OrderEmail.service
             MonthlyOrderSum = 0;
             WeeklyOrderSummaryJobExecutionStatus = 0;
             MonthlyOrderSummaryJobExecutionStatus = 0;
-            weeklyOrderLastSuccessTimestamp = 0;
-            monthlyOrderLastSuccessTimestamp = 0;
+            weeklyOrderLastSuccessTimestamp = InitWeeklyExecutionTimestamp();
+            monthlyOrderLastSuccessTimestamp = InitMonthlyExecutionTimestamp();
 
             log = logger;
             meter = meterFactory.Create(serviceName, serviceVersion);

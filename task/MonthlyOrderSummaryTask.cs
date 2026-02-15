@@ -221,20 +221,21 @@ namespace OrderEmail.task
 
             htmlBuilder.Append($"<table class='uppertable'>");
 
-            htmlBuilder.Append("<tr height='20px'>");
-            htmlBuilder.Append($"<td></td>");
+            htmlBuilder.Append("<tr class='lowertabletr' height='20px'>");
             htmlBuilder.Append($"<td class='simpletd'><b>Tól</b></td>");
             htmlBuilder.Append($"<td class='simpletd'><b>Ig</b></td>");
+            htmlBuilder.Append($"<td align='center'><b>Σ</b></td>");
             htmlBuilder.Append("</tr>");
-            htmlBuilder.Append("<tr height='20px'>");
-            htmlBuilder.Append($"<td></td>");
+            htmlBuilder.Append("<tr class='lowertabletr' height='20px'>");
             htmlBuilder.Append($"<td class='simpletd'><b>{monthStartDate}</b></td>");
             htmlBuilder.Append($"<td class='simpletd'><b>{monthEndDate}</b></td>");
-            htmlBuilder.Append("</tr>");
-            htmlBuilder.Append($"<tr class='lowertabletr'>");
-            htmlBuilder.Append($"<td></td>");
-            htmlBuilder.Append($"<td align='center'><b>Σ</b></td>");
             htmlBuilder.Append($"<td align='right'><b>{strTurnOver} Ft</b></td>");
+            htmlBuilder.Append("</tr>");
+
+            htmlBuilder.Append("<tr>");
+            htmlBuilder.Append("<td></td>");
+            htmlBuilder.Append("<td></td>");
+            htmlBuilder.Append("<td></td>");
             htmlBuilder.Append("</tr>");
 
             htmlBuilder.Append("<tr height='20px'>");
