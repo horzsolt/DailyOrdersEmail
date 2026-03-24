@@ -26,10 +26,13 @@ namespace DailyOrdersEmail
         private static void ConfigureServices(HostApplicationBuilder appBuilder)
         {
 
-            appBuilder.Services.AddWindowsService(options =>
+            if (OperatingSystem.IsWindows() && !Environment.UserInteractive)
             {
-                options.ServiceName = serviceName;
-            });
+                appBuilder.Services.AddWindowsService(options =>
+                {
+                    options.ServiceName = serviceName;
+                });
+            }
 
             appBuilder.Services.AddOpenTelemetry()
                 .WithTracing(builder =>
@@ -157,7 +160,27 @@ namespace DailyOrdersEmail
                 new PatikaManService(sp.GetRequiredService<ILogger<PatikaManService>>(), sp.GetRequiredService<IEnumerable<ServiceTask>>()
                     .Where(t => t.GetType().GetCustomAttribute<PatikamanTaskAttribute>() != null)));
         }
+
         static void Main(string[] args)
+        {
+            string exeDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string log4NetConfigFilePath = Path.Combine(exeDirectory, "log4net.config");
+            XmlConfigurator.Configure(new FileInfo(log4NetConfigFilePath));
+
+            var builder = Host.CreateApplicationBuilder(args);
+
+            ConfigureServices(builder);
+
+            var host = builder.Build();
+
+            var logger = host.Services.GetRequiredService<ILogger<Program>>();
+
+            logger.LogInformation("Application started.");
+            logger.LogDebug("Framework: " + FRWK.GetEnvironmentVersion() + " " + FRWK.GetTargetFrameworkName() + " " + FRWK.GetFrameworkDescription());
+
+            host.Run();
+        }
+        static void _Main(string[] args)
         {
             string exeDirectory = AppDomain.CurrentDomain.BaseDirectory;
             string log4NetConfigFilePath = Path.Combine(exeDirectory, "log4net.config");

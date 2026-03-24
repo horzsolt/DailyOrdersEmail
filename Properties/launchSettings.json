@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "OrderEmail": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "DockerfileRunArguments": "--name dailyordersemail",
+      "DockerfileTag": "horzsolt/dailyordersemail:latest"
+    }
+  }
+}

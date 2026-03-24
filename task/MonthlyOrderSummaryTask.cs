@@ -82,8 +82,8 @@ namespace OrderEmail.task
                     }
                 }
 
-                DateTime now = DateTime.Now;
-                DateTime monthStart = new DateTime(now.Year, now.Month, 1);
+                DateTime today = DateTime.Today;
+                DateTime monthStart = new DateTime(today.Year, today.Month, 1);
                 DateTime monthEnd = monthStart
                     .AddMonths(1)
                     .AddTicks(-1);
@@ -93,7 +93,7 @@ namespace OrderEmail.task
                         PARTNER_NEV,
                         PARTNER_HELYSEG,
                         SUM(ARBEVETEL_NFT) AS ARBEVETEL_NFT
-                    FROM [dbo].[v_qad_arbevetel_2026] WITH (NOLOCK)
+                    FROM [dbo].[v_qad_arbevetel_2026]
                     WHERE
                         BELSO_PARTNER = 'N'
                         AND ERT_TIPUS = 'Termék'
@@ -107,8 +107,8 @@ namespace OrderEmail.task
 
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.Add("@MonthStart", SqlDbType.DateTime).Value = monthStart;
-                    command.Parameters.Add("@MonthEnd", SqlDbType.DateTime).Value = monthEnd;
+                    command.Parameters.Add("@MonthStart", SqlDbType.Date).Value = monthStart;
+                    command.Parameters.Add("@MonthEnd", SqlDbType.Date).Value = monthEnd;
 
                     command.CommandTimeout = 0;
 
@@ -117,8 +117,8 @@ namespace OrderEmail.task
                         {Query}
 
                         Parameters:
-                        @MonthStart = {MonthStart:yyyy-MM-dd HH:mm:ss}
-                        @MonthEnd   = {MonthEnd:yyyy-MM-dd HH:mm:ss}",
+                        @MonthStart = {MonthStart:yyyy-MM-dd}
+                        @MonthEnd   = {MonthEnd:yyyy-MM-dd}",
                         query,
                         monthStart,
                         monthEnd);
@@ -169,7 +169,7 @@ namespace OrderEmail.task
 
             string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
 
-            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), "horvath.zsolt@goodwillpharma.com");
+            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), "horzsolt2006@gmail.com");
 
             metricService.MonthlyOrderSum = overall_Turnover;
             metricService.MonthlyOrderCount = orderCounter;

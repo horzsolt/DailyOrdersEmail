@@ -82,22 +82,22 @@ namespace OrderEmail.task
                     }
                 }
 
-                DateTime now = DateTime.Now;
+                DateTime today = DateTime.Today;
 
                 // Find Monday of the current week
-                int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
-                DateTime monday = now.Date.AddDays(-diff);
+                int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+                DateTime monday = today.AddDays(-diff);
 
-                // Apply time offsets Monday 5:00 - Friday 17:00
-                DateTime weekStart = monday.AddHours(5);
-                DateTime weekEnd = monday.AddDays(4).AddHours(17);
+                // Date-only range
+                DateTime weekStart = monday;
+                DateTime weekEnd = monday.AddDays(4);
 
                 query = @"
                     SELECT 
                         PARTNER_NEV,
                         PARTNER_HELYSEG,
                         SUM(ARBEVETEL_NFT) AS ARBEVETEL_NFT
-                    FROM [dbo].[v_qad_arbevetel_2026] WITH (NOLOCK)
+                    FROM [dbo].[v_qad_arbevetel_2026]
                     WHERE
                         BELSO_PARTNER = 'N'
                         AND ERT_TIPUS = 'Termék'
@@ -111,8 +111,8 @@ namespace OrderEmail.task
 
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    command.Parameters.Add("@WeekStart", SqlDbType.DateTime).Value = weekStart;
-                    command.Parameters.Add("@WeekEnd", SqlDbType.DateTime).Value = weekEnd;
+                    command.Parameters.Add("@WeekStart", SqlDbType.Date).Value = weekStart;
+                    command.Parameters.Add("@WeekEnd", SqlDbType.Date).Value = weekEnd;
 
                     command.CommandTimeout = 0;
 
@@ -121,8 +121,8 @@ namespace OrderEmail.task
                         {Query}
 
                         Parameters:
-                        @WeekStart = {WeekStart:yyyy-MM-dd HH:mm:ss}
-                        @WeekEnd   = {WeekEnd:yyyy-MM-dd HH:mm:ss}",
+                        @WeekStart = {WeekStart:yyyy-MM-dd}
+                        @WeekEnd   = {WeekEnd:yyyy-MM-dd}",
                         query,
                         weekStart,
                         weekEnd);
@@ -173,7 +173,7 @@ namespace OrderEmail.task
 
             string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
 
-            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), "horvath.zsolt@goodwillpharma.com");
+            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), "horzsolt2006@gmail.com");
 
             metricService.WeeklyOrderSum = overall_Turnover;
             metricService.WeeklyOrderCount = orderCounter;

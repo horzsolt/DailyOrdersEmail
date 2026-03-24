@@ -79,25 +79,6 @@ namespace OrderEmail.service
             }
         }
 
-        public long InitWeeklyExecutionTimestamp()
-        {
-            DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-
-            int daysSinceFriday =
-                ((int)nowUtc.DayOfWeek - (int)DayOfWeek.Friday + 7) % 7;
-
-            // If today is Friday, go back one full week
-            if (daysSinceFriday == 0)
-                daysSinceFriday = 7;
-
-            DateTimeOffset previousFriday =
-                nowUtc.Date
-                      .AddDays(-daysSinceFriday)
-                      .AddHours(17)
-                      .AddMinutes(10);
-
-            return previousFriday.ToUnixTimeSeconds();
-        }
         public void MarkWeeklyOrderSummaryJobSuccess()
         {
             weeklyOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -275,8 +256,8 @@ namespace OrderEmail.service
             MonthlyOrderSum = 0;
             WeeklyOrderSummaryJobExecutionStatus = 0;
             MonthlyOrderSummaryJobExecutionStatus = 0;
-            weeklyOrderLastSuccessTimestamp = InitWeeklyExecutionTimestamp();
-            monthlyOrderLastSuccessTimestamp = InitMonthlyExecutionTimestamp();
+            weeklyOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            monthlyOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             log = logger;
             meter = meterFactory.Create(serviceName, serviceVersion);

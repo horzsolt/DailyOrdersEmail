@@ -1,0 +1,21 @@
+# ---- Build stage ----
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+
+# Copy csproj and restore first (better caching)
+COPY *.csproj ./
+RUN dotnet restore
+
+# Copy everything else and publish
+COPY . ./
+RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
+
+# ---- Runtime stage ----
+FROM mcr.microsoft.com/dotnet/runtime:9.0
+WORKDIR /app
+
+# Copy published output
+COPY --from=build /app/publish .
+
+# Run the app
+ENTRYPOINT ["dotnet", "DailyOrdersEmail.dll"]

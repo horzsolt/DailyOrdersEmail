@@ -144,7 +144,7 @@ namespace OrderEmail.task
             string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
             string subject = $"Napvégi árbevétel értesítő";
 
-            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover));
+            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), "horzsolt2006@gmail.com");
 
             metricService.DailyOrderSum = overall_Turnover;
             metricService.DailyOrderCount = orderCounter;

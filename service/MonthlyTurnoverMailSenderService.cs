@@ -15,10 +15,10 @@ namespace OrderEmail.service
         private readonly ILogger<MonthlyTurnoverMailSenderService> log;
 
         // TEST OVERRIDES (set to null in production)
-        private static readonly DayOfWeek? OverrideRunDay = DayOfWeek.Sunday;
-        private static readonly TimeSpan? OverrideRunTime = new TimeSpan(14, 02, 0);
-        //private static readonly DayOfWeek? OverrideRunDay = null;
-        //private static readonly TimeSpan? OverrideRunTime = null;
+        //private static readonly DayOfWeek? OverrideRunDay = DayOfWeek.Wednesday;
+        //private static readonly TimeSpan? OverrideRunTime = new TimeSpan(17, 33, 0);
+        private static readonly DayOfWeek? OverrideRunDay = null;
+        private static readonly TimeSpan? OverrideRunTime = null;
 
         // Monthly default
         private static readonly TimeSpan MonthlyRunTime = new TimeSpan(17, 32, 0);
