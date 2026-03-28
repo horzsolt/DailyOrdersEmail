@@ -205,7 +205,7 @@ namespace OrderEmail.task
                     htmlBuilder.Append(htmlTableBuilder.ToString());
 
                     //Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
-                    Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover), "horzsolt2006@gmail.com");
+                    Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
                     overall_OrderCount++;
                     overall_Turnover += sum_Turnover;
 
