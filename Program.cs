@@ -54,7 +54,6 @@ namespace DailyOrdersEmail
                         .AddMeter(serviceName)
                         .AddRuntimeInstrumentation()
                         .AddOtlpExporter();
-                    //.AddConsoleExporter();
                 });
 
             appBuilder.Services.AddLogging(builder =>
