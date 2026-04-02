@@ -1,8 +1,11 @@
-﻿using log4net;
+﻿using System.Linq;
+using log4net;
+using log4net.Repository.Hierarchy;
+using log4net.Appender;
 using System;
 using System.IO;
-using System.Net.Mail;
 using System.Net;
+using System.Net.Mail;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -19,10 +22,27 @@ namespace OrderEmail.util
             string cleanedString = Regex.Replace(dateTimeString, @"[^0-9a-zA-Z]+", "");
             return cleanedString;
         }
-        public static void RemoveOldFiles(string folderPath, int daysOld)
+
+        public static string GetLogDirectory()
+        {
+            var hierarchy = (Hierarchy)LogManager.GetRepository();
+
+            var appender = hierarchy.Root.Appenders
+                .OfType<RollingFileAppender>()
+                .FirstOrDefault(a => a.Name == "FileAppender");
+
+            if (appender == null || string.IsNullOrEmpty(appender.File))
+                throw new InvalidOperationException("FileAppender not found or not configured.");
+
+            return Path.GetDirectoryName(appender.File);
+        }
+        public static void RemoveOldFiles()
         {
             try
             {
+                string folderPath = GetLogDirectory();
+                int daysOld = 10;
+
                 log.Debug($"Removing files older than {daysOld} days from: {folderPath}");
 
                 DateTime currentDate = DateTime.Now;

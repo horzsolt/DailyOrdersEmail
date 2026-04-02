@@ -1,6 +1,4 @@
-﻿using OrderEmail.task;
-using OrderEmail.util;
-using log4net.Config;
+﻿using log4net.Config;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -9,10 +7,13 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OrderEmail.service;
+using OrderEmail.task;
+using OrderEmail.util;
 using System;
 using System.Collections.Generic;
 using System.Configuration.Install;
 using System.Diagnostics.Metrics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -163,6 +164,10 @@ namespace DailyOrdersEmail
 
         static void Main(string[] args)
         {
+            var culture = new CultureInfo("hu-HU");
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+
             string exeDirectory = AppDomain.CurrentDomain.BaseDirectory;
             string log4NetConfigFilePath = Path.Combine(exeDirectory, "log4net.config");
             XmlConfigurator.Configure(new FileInfo(log4NetConfigFilePath));

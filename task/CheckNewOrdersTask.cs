@@ -1,11 +1,12 @@
-﻿using System;
-using Microsoft.Data.SqlClient;
-using System.Diagnostics;
-using System.Text;
-using System.Data;
+﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
-using OrderEmail.util;
 using OrderEmail.service;
+using OrderEmail.util;
+using System;
+using System.Data;
+using System.Diagnostics;
+using System.Globalization;
+using System.Text;
 
 namespace OrderEmail.task
 {
@@ -73,11 +74,6 @@ namespace OrderEmail.task
                             config.MailRetentionDays = reader.IsDBNull(7) ? 0 : reader.GetInt32(7);
                             config.MailSendFrom = reader.IsDBNull(8) ? string.Empty : reader.GetString(8).Trim();
 
-                            if (config.TestMode == true)
-                            {
-                                config.LastCheckTime = DateTime.Now.AddHours(-2);
-                            }
-
                             log.LogDebug($"Last check time: {config.LastCheckTime}");
                         }
                         else
@@ -107,32 +103,26 @@ namespace OrderEmail.task
                     }
                 }
 
-                if (config.TestMode == false)
+
+                if (lastCheckedTimestamp.HasValue)
                 {
-                    if (lastCheckedTimestamp.HasValue)
+                    log.LogInformation($"Updating the lastCheckTime in the database to {lastCheckedTimestamp}");
+
+                    query = "UPDATE dbo.DailyOrderMailConfig SET last_check = @timestamp";
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
                     {
-                        log.LogInformation($"Updating the lastCheckTime in the database to {lastCheckedTimestamp}");
-
-                        query = "UPDATE dbo.DailyOrderMailConfig SET last_check = @timestamp";
-
-                        using (SqlCommand command = new SqlCommand(query, connection))
-                        {
-                            command.Parameters.AddWithValue("@timestamp", lastCheckedTimestamp);
-                            int rowsAffected = command.ExecuteNonQuery();
-                            log.LogDebug($"Rows affected after updating the lastCheckTime: {rowsAffected}");
-                        }
+                        command.Parameters.AddWithValue("@timestamp", lastCheckedTimestamp);
+                        int rowsAffected = command.ExecuteNonQuery();
+                        log.LogDebug($"Rows affected after updating the lastCheckTime: {rowsAffected}");
                     }
-                    else
-                    {
-                        log.LogInformation("As no new orders found the last_check value has not been changed.");
-                    }
-
-                    Util.RemoveOldFiles(config.MailSaveToFolder, 10);
                 }
                 else
                 {
-                    log.LogDebug("Running in test mode, no changes will be saved to the database.");
+                    log.LogInformation("As no new orders found the last_check value has not been changed.");
                 }
+
+                Util.RemoveOldFiles();
             }
         }
 
@@ -233,7 +223,8 @@ namespace OrderEmail.task
                     htmlTableBuilder.Append($"<td align='right'>{row["Rend_Unit"]} db</td>");
                     htmlTableBuilder.Append($"<td align='right'>{row["Rabatt"]} db</td>");
                     htmlTableBuilder.Append($"<td align='right'>{row["Kedv_Sz"]} %</td>");
-                    htmlTableBuilder.Append($"<td align='right'>{string.Format("{0:C0}", row["Forgalom"])}</td>");
+                    htmlTableBuilder.Append(
+                        $"<td align='right'>{string.Format("{0:C0}", row["Forgalom"])}</td>");
                     htmlTableBuilder.Append("</tr>");
 
                     sum_Rend_Unit += row.Field<int>("Rend_Unit");
@@ -270,7 +261,8 @@ namespace OrderEmail.task
                 htmlTableBuilder.Append($"<td align='right'>{row["Rend_Unit"]} db</td>");
                 htmlTableBuilder.Append($"<td align='right'>{row["Rabatt"]} db</td>");
                 htmlTableBuilder.Append($"<td align='right'>{row["Kedv_Sz"]} %</td>");
-                htmlTableBuilder.Append($"<td align='right'>{string.Format("{0:C0}", row["Forgalom"])}</td>");
+                htmlTableBuilder.Append(
+                    $"<td align='right'>{string.Format("{0:C0}", row["Forgalom"])}</td>");
                 htmlTableBuilder.Append("</tr>");
 
                 sum_Rend_Unit += row.Field<int>("Rend_Unit");
@@ -292,7 +284,8 @@ namespace OrderEmail.task
             htmlBuilder.Append($"<td align='right'><b>{sum_Rend_Unit} db</b></td>");
             htmlBuilder.Append($"<td align='right'><b>{sum_Rabatt} db</b></td>");
             htmlBuilder.Append($"<td></td>");
-            htmlBuilder.Append($"<td align='right'><b>{string.Format("{0:C0}", sum_Forgalom)}</b></td>");
+            htmlBuilder.Append(
+                $"<td align='right'><b>{string.Format("{0:C0}", sum_Forgalom)}</b></td>");
             htmlBuilder.Append("</tr>");
         }
 
