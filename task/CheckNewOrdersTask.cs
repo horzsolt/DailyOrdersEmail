@@ -127,7 +127,7 @@ namespace OrderEmail.task
                         log.LogInformation("As no new orders found the last_check value has not been changed.");
                     }
 
-                    Util.RemoveOldFiles(config.MailSaveToFolder, 10);
+                    //Util.RemoveOldFiles(config.MailSaveToFolder, 10);
                 }
                 else
                 {
