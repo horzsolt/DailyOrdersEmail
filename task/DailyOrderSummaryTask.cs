@@ -38,7 +38,6 @@ namespace OrderEmail.task
 
         private void CheckForNewRecords()
         {
-
             string connectionString = $"Server={Environment.GetEnvironmentVariable("VIR_SQL_SERVER_NAME")};" +
                                       $"Database={Environment.GetEnvironmentVariable("VIR_SQL_DATABASE")};" +
                                       $"User Id={Environment.GetEnvironmentVariable("VIR_SQL_USER")};" +
@@ -47,70 +46,65 @@ namespace OrderEmail.task
 
             log.LogDebug($"Connection string: {connectionString}");
 
-            Configuration config = new Configuration();
-            config.TestMode = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VIR_TEST_MODE"));
-
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
 
-                string query = "SELECT TOP 1 * FROM dbo.DailyOrderMailConfig";
-
-                using (SqlCommand command = new SqlCommand(query, connection))
+                Configuration config;
+                try
                 {
-                    using (SqlDataReader reader = command.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            config.LastCheckTime = reader.IsDBNull(0) ? DateTime.Now.AddHours(-1) : reader.GetDateTime(0);
-                            config.MailServer = reader.IsDBNull(1) ? string.Empty : reader.GetString(1).Trim();
-                            config.MailSecrecy = reader.IsDBNull(2) ? string.Empty : reader.GetString(2).Trim();
-                            config.MailPassword = reader.IsDBNull(3) ? string.Empty : reader.GetString(3).Trim();
-                            config.MailSendTo = reader.IsDBNull(4) ? string.Empty : reader.GetString(4).Trim();
-                            config.MailSaveToFolder = reader.IsDBNull(5) ? string.Empty : reader.GetString(5).Trim();
-                            config.MailSelectStatement = reader.IsDBNull(6) ? string.Empty : reader.GetString(6).Trim();
-                            config.MailRetentionDays = reader.IsDBNull(7) ? 0 : reader.GetInt32(7);
-                            config.MailSendFrom = reader.IsDBNull(8) ? string.Empty : reader.GetString(8).Trim();
-                        }
-                        else
-                        {
-                            metricService.DailyOrderSummaryJobExecutionStatus = 0;
-                            log.LogError("No records found in the DailyOrderMailConfig table.");
-                            return;
-                        }
-                    }
+                    config = Util.LoadConfiguration(connection);
+                }
+                catch (Exception ex)
+                {
+                    metricService.DailyOrderSummaryJobExecutionStatus = 0;
+                    log.LogError(ex, "Failed to load configuration (daily).");
+                    return;
                 }
 
                 DateTime queryDate = DateTime.Today;
-                //queryDate = new DateTime(2025, 10, 17);
+                // queryDate = new DateTime(2025, 10, 17);
 
-                query = @"
-                    SELECT 
-                        PARTNER_NEV,
-                        PARTNER_HELYSEG,
-                        SUM(ARBEVETEL_NFT) AS ARBEVETEL_NFT
-                    FROM [dbo].[v_qad_arbevetel_union] WITH (NOLOCK)
-                    WHERE
-                        BELSO_PARTNER = 'N'
-                        AND ERT_TIPUS = 'Termék'
-                        AND BIZONYLAT_DATUM = @BizDatum
-                    GROUP BY
-                        PARTNER_NEV,
-                        PARTNER_HELYSEG
-                    ORDER BY
-                        SUM(ARBEVETEL_NFT) DESC;";
+                string query = @"
+            SELECT 
+                PARTNER_NEV,
+                PARTNER_HELYSEG,
+                SUM(ARBEVETEL_NFT) AS ARBEVETEL_NFT
+            FROM [dbo].[v_qad_arbevetel_union] WITH (NOLOCK)
+            WHERE
+                BELSO_PARTNER = 'N'
+                AND ERT_TIPUS = 'Termék'
+                AND BIZONYLAT_DATUM = @BizDatum
+            GROUP BY
+                PARTNER_NEV,
+                PARTNER_HELYSEG
+            ORDER BY
+                SUM(ARBEVETEL_NFT) DESC;";
 
-                using (SqlCommand command = new SqlCommand(query, connection))
+                DataTable data;
+                try
                 {
-                    command.Parameters.Add("@BizDatum", SqlDbType.Date).Value = queryDate;
-                    command.CommandTimeout = 500;
-                    using (SqlDataReader reader = command.ExecuteReader())
-                    {
-                        DataTable dataTable = new DataTable();
-                        dataTable.Load(reader);
-                        GenerateHtmlEmail(dataTable, config);
-                    }
+                    data = Util.GetDataWithRetry(
+                        connection,
+                        query,
+                        cmd =>
+                        {
+                            cmd.Parameters.Add("@BizDatum", SqlDbType.Date).Value = queryDate;
+
+                            log.LogInformation(
+                                @"Parameters:
+                          @BizDatum = {BizDatum:yyyy-MM-dd}",
+                                queryDate);
+                        });
                 }
+                catch (Exception ex)
+                {
+                    metricService.DailyOrderSummaryJobExecutionStatus = 0;
+                    log.LogError(ex, "Failed to retrieve daily data after retries.");
+                    return;
+                }
+
+                GenerateHtmlEmail(data, config);
             }
         }
 

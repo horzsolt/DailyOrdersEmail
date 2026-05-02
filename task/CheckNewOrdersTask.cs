@@ -5,7 +5,6 @@ using OrderEmail.util;
 using System;
 using System.Data;
 using System.Diagnostics;
-using System.Globalization;
 using System.Text;
 
 namespace OrderEmail.task
@@ -85,7 +84,12 @@ namespace OrderEmail.task
                     }
                 }
 
-                query = config.MailSelectStatement;
+                //query = config.MailSelectStatement;
+                query = "SELECT RepCsop, Rogzitve, RendAzon, Rend_Datum, Nev, CID, Ugyfel, " +
+                        "Helyseg, Nagyker, Termek, Kedv_Sz, Rend_Unit, Rabatt, Forgalom " +
+                        " FROM[dbo].[v_rendeles_teteles_u2] " +
+                        " WHERE Rogzitve > @timestamp AND RepCsop NOT IN('Colgate', 'Benzinkút') " +
+                        " ORDER BY Rogzitve, Nev, CID, Termek";
 
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
@@ -100,9 +104,10 @@ namespace OrderEmail.task
                         DataTable dataTable = new DataTable();
                         dataTable.Load(reader);
                         lastCheckedTimestamp = GenerateHtmlEmail(dataTable, config);
+                        log.LogDebug($"lastCheckedTimestamp: {lastCheckedTimestamp}");
                     }
                 }
-
+                log.LogDebug("----------------------------------------1 --------------------------------------");
 
                 if (lastCheckedTimestamp.HasValue)
                 {
@@ -122,6 +127,7 @@ namespace OrderEmail.task
                     log.LogInformation("As no new orders found the last_check value has not been changed.");
                 }
 
+                log.LogDebug("---------------------------------------- 2 --------------------------------------");
                 Util.RemoveOldFiles();
             }
         }
@@ -167,10 +173,10 @@ namespace OrderEmail.task
 
                 int index = dataTable.Rows.IndexOf(row);
 
-                log.LogDebug($"Actual_CID: {actual_CID}");
+                /*log.LogDebug($"Actual_CID: {actual_CID}");
                 log.LogDebug($"Actual_AgentName: {actual_agentName}");
                 log.LogDebug($"Actual_Nagyker: {actual_Nagyker}");
-                log.LogDebug($"{index.ToString()}/{dataTable.Rows.Count}");
+                log.LogDebug($"{index.ToString()}/{dataTable.Rows.Count}");*/
 
                 if (actual_CID != CID || actual_agentName != agentName || actual_Nagyker != nagyker)
                 {
@@ -195,7 +201,7 @@ namespace OrderEmail.task
                     htmlBuilder.Append(htmlTableBuilder.ToString());
 
                     //Util.SaveStringBuilderToFile(htmlBuilder, Path.Combine(config.MailSaveToFolder, fileName));
-                    Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover));
+                    Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", sum_Turnover), "horvath.zsolt@goodwillpharma.com");
                     overall_OrderCount++;
                     overall_Turnover += sum_Turnover;
 

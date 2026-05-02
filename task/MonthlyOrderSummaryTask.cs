@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace OrderEmail.task
 {
@@ -39,7 +40,6 @@ namespace OrderEmail.task
 
         private void CheckForNewRecords()
         {
-
             string connectionString = $"Server={Environment.GetEnvironmentVariable("VIR_SQL_SERVER_NAME")};" +
                                       $"Database={Environment.GetEnvironmentVariable("VIR_SQL_DATABASE")};" +
                                       $"User Id={Environment.GetEnvironmentVariable("VIR_SQL_USER")};" +
@@ -48,88 +48,72 @@ namespace OrderEmail.task
 
             log.LogDebug($"Connection string: {connectionString}");
 
-            Configuration config = new Configuration();
-            config.TestMode = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VIR_TEST_MODE"));
-
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
 
-                string query = "SELECT TOP 1 * FROM dbo.DailyOrderMailConfig";
-
-                using (SqlCommand command = new SqlCommand(query, connection))
+                Configuration config;
+                try
                 {
-                    using (SqlDataReader reader = command.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            config.LastCheckTime = reader.IsDBNull(0) ? DateTime.Now.AddHours(-1) : reader.GetDateTime(0);
-                            config.MailServer = reader.IsDBNull(1) ? string.Empty : reader.GetString(1).Trim();
-                            config.MailSecrecy = reader.IsDBNull(2) ? string.Empty : reader.GetString(2).Trim();
-                            config.MailPassword = reader.IsDBNull(3) ? string.Empty : reader.GetString(3).Trim();
-                            config.MailSendTo = reader.IsDBNull(4) ? string.Empty : reader.GetString(4).Trim();
-                            config.MailSaveToFolder = reader.IsDBNull(5) ? string.Empty : reader.GetString(5).Trim();
-                            config.MailSelectStatement = reader.IsDBNull(6) ? string.Empty : reader.GetString(6).Trim();
-                            config.MailRetentionDays = reader.IsDBNull(7) ? 0 : reader.GetInt32(7);
-                            config.MailSendFrom = reader.IsDBNull(8) ? string.Empty : reader.GetString(8).Trim();
-                        }
-                        else
-                        {
-                            metricService.MonthlyOrderSummaryJobExecutionStatus = 0;
-                            log.LogError("No records found in the DailyOrderMailConfig table.");
-                            return;
-                        }
-                    }
+                    config = Util.LoadConfiguration(connection);
+                }
+                catch (Exception ex)
+                {
+                    metricService.MonthlyOrderSummaryJobExecutionStatus = 0;
+                    log.LogError(ex, "Failed to load configuration (monthly).");
+                    return;
                 }
 
                 DateTime today = DateTime.Today;
                 DateTime monthStart = new DateTime(today.Year, today.Month, 1);
-                DateTime monthEnd = monthStart
-                    .AddMonths(1)
-                    .AddTicks(-1);
+                DateTime monthEnd = monthStart.AddMonths(1).AddTicks(-1);
 
-                query = @"
-                    SELECT 
-                        PARTNER_NEV,
-                        PARTNER_HELYSEG,
-                        SUM(ARBEVETEL_NFT) AS ARBEVETEL_NFT
-                    FROM [dbo].[v_qad_arbevetel_2026]
-                    WHERE
-                        BELSO_PARTNER = 'N'
-                        AND ERT_TIPUS = 'Termék'
-                        AND BIZONYLAT_DATUM >= @MonthStart
-                        AND BIZONYLAT_DATUM <= @MonthEnd
-                    GROUP BY
-                        PARTNER_NEV,
-                        PARTNER_HELYSEG
-                    ORDER BY
-                        SUM(ARBEVETEL_NFT) DESC;";
+                DataTable data;
+                string query = @"
+                SELECT 
+                    PARTNER_NEV,
+                    PARTNER_HELYSEG,
+                    SUM(ARBEVETEL_NFT) AS ARBEVETEL_NFT
+                FROM [dbo].[v_qad_arbevetel_2026]
+                WHERE
+                    BELSO_PARTNER = 'N'
+                    AND ERT_TIPUS = 'Termék'
+                    AND BIZONYLAT_DATUM >= @MonthStart
+                    AND BIZONYLAT_DATUM <= @MonthEnd
+                GROUP BY
+                    PARTNER_NEV,
+                    PARTNER_HELYSEG
+                ORDER BY
+                    SUM(ARBEVETEL_NFT) DESC;";
 
-                using (SqlCommand command = new SqlCommand(query, connection))
+                try
                 {
-                    command.Parameters.Add("@MonthStart", SqlDbType.Date).Value = monthStart;
-                    command.Parameters.Add("@MonthEnd", SqlDbType.Date).Value = monthEnd;
-
-                    command.CommandTimeout = 0;
-
-                    log.LogInformation(
-                        @"Executing SQL:
-                        {Query}
-
-                        Parameters:
-                        @MonthStart = {MonthStart:yyyy-MM-dd}
-                        @MonthEnd   = {MonthEnd:yyyy-MM-dd}",
+                    data = Util.GetDataWithRetry(
+                        connection,
                         query,
-                        monthStart,
-                        monthEnd);
+                        cmd =>
+                        {
+                            cmd.Parameters.Add("@MonthStart", SqlDbType.Date).Value = monthStart;
+                            cmd.Parameters.Add("@MonthEnd", SqlDbType.Date).Value = monthEnd;
 
-                    using (SqlDataReader reader = command.ExecuteReader())
-                    {
-                        DataTable dataTable = new DataTable();
-                        dataTable.Load(reader);
-                        GenerateHtmlEmail(dataTable, config, monthStart, monthEnd);
-                    }
+                            log.LogInformation(
+                                @"Parameters:
+                          @MonthStart = {Monthstart:yyyy-MM-dd}",
+                                monthStart);
+                            log.LogInformation(
+                                @"Parameters:
+                          @MonthEnd = {MonthEnd:yyyy-MM-dd}",
+                                monthEnd);
+                        });
                 }
+                catch (Exception ex)
+                {
+                    metricService.DailyOrderSummaryJobExecutionStatus = 0;
+                    log.LogError(ex, "Failed to retrieve monthly data after retries.");
+                    return;
+                }
+
+                GenerateHtmlEmail(data, config, monthStart, monthEnd);
             }
         }
 
@@ -169,7 +153,7 @@ namespace OrderEmail.task
 
             string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
 
-            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), "horzsolt2006@gmail.com");
+            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), "horvath.zsolt@goodwillpharma.com");
 
             metricService.MonthlyOrderSum = overall_Turnover;
             metricService.MonthlyOrderCount = orderCounter;
