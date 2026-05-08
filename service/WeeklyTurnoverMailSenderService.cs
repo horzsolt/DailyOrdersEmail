@@ -15,7 +15,7 @@ namespace OrderEmail.service
         private readonly ILogger<WeeklyTurnoverMailSenderService> log;
 
         private static readonly DayOfWeek RunDay = DayOfWeek.Friday;
-        private static readonly TimeSpan RunTime = new TimeSpan(19, 20, 0);
+        private static readonly TimeSpan RunTime = new TimeSpan(18, 50, 0);
 
         public string GetInfo()
         {
