@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -39,21 +40,28 @@ namespace DailyOrdersEmail
                 .WithTracing(builder =>
                 {
                     builder
-                        .AddSource(serviceName)
-                        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(
-                            serviceName: serviceName,
-                            serviceVersion: serviceVersion))
-                        .AddOtlpExporter();
+                        .SetResourceBuilder(ResourceBuilder.CreateDefault()
+                            .AddService(serviceName, serviceVersion))
+                        .AddAspNetCoreInstrumentation()
+                        .AddHttpClientInstrumentation()
+                        .AddOtlpExporter(o =>
+                        {
+                            o.Endpoint = new Uri("http://172.26.0.1:4317");
+                            o.Protocol = OtlpExportProtocol.Grpc;
+                        });
                 })
                 .WithMetrics(builder =>
                 {
                     builder
-                        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(
-                            serviceName: serviceName,
-                            serviceVersion: serviceVersion))
-                        .AddMeter(serviceName)
+                        .SetResourceBuilder(ResourceBuilder.CreateDefault()
+                            .AddService(serviceName, serviceVersion))
                         .AddRuntimeInstrumentation()
-                        .AddOtlpExporter();
+                        .AddAspNetCoreInstrumentation()
+                        .AddOtlpExporter(o =>
+                        {
+                            o.Endpoint = new Uri("http://172.26.0.1:4317");
+                            o.Protocol = OtlpExportProtocol.Grpc;
+                        });
                 });
 
             appBuilder.Services.AddLogging(builder =>
