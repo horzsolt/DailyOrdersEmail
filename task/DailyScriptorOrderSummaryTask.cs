@@ -164,7 +164,7 @@ namespace OrderEmail.task
             string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
             string subject = $"Napi Scriptor értékesítés jelentés";
 
-            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover), Environment.GetEnvironmentVariable("VIR_PATIKAMAN_USERNAME"));
+            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover));
 
             metricService.DailyOrderSum = overall_Turnover;
             metricService.DailyOrderCount = orderCounter;
