@@ -40,45 +40,51 @@ namespace DailyOrdersEmail
                 .WithTracing(builder =>
                 {
                     builder
-                        .SetResourceBuilder(ResourceBuilder.CreateDefault()
-                            .AddService(serviceName, serviceVersion))
-                        .AddAspNetCoreInstrumentation()
-                        .AddHttpClientInstrumentation()
+                        .AddSource(serviceName)
+                        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(
+                            serviceName: serviceName,
+                            serviceVersion: serviceVersion))
                         .AddOtlpExporter(o =>
                         {
-                            o.Endpoint = new Uri("http://172.26.0.1:4317");
-                            o.Protocol = OtlpExportProtocol.Grpc;
+                            o.Endpoint = new Uri("http://172.26.0.1:4318/v1/traces");
+                            o.Protocol = OtlpExportProtocol.HttpProtobuf;
                         });
                 })
                 .WithMetrics(builder =>
                 {
                     builder
-                        .SetResourceBuilder(ResourceBuilder.CreateDefault()
-                            .AddService(serviceName, serviceVersion))
+                        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(
+                            serviceName: serviceName,
+                            serviceVersion: serviceVersion))
+                        .AddMeter(serviceName)
                         .AddRuntimeInstrumentation()
-                        .AddAspNetCoreInstrumentation()
                         .AddOtlpExporter(o =>
                         {
-                            o.Endpoint = new Uri("http://172.26.0.1:4317");
-                            o.Protocol = OtlpExportProtocol.Grpc;
+                            o.Endpoint = new Uri("http://172.26.0.1:4318/v1/metrics");
+                            o.Protocol = OtlpExportProtocol.HttpProtobuf;
                         });
                 });
 
             appBuilder.Services.AddLogging(builder =>
             {
                 builder.SetMinimumLevel(LogLevel.Debug);
+                string exeDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string log4NetConfigFilePath = Path.Combine(exeDirectory, "log4net.config");
+                builder.AddLog4Net(log4NetConfigFilePath); // file logs only
+
                 builder.AddOpenTelemetry(options =>
                 {
                     options.IncludeScopes = true;
-                    options.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(
-                        serviceName: serviceName,
-                        serviceVersion: serviceVersion));
-                    options.AddOtlpExporter();
-                });
 
-                string exeDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                string log4NetConfigFilePath = Path.Combine(exeDirectory, "log4net.config");
-                builder.AddLog4Net(log4NetConfigFilePath);
+                    options.SetResourceBuilder(
+                        ResourceBuilder.CreateDefault().AddService(serviceName, serviceVersion));
+
+                    options.AddOtlpExporter(o =>
+                    {
+                        o.Endpoint = new Uri("http://172.26.0.1:4318/v1/logs");
+                        o.Protocol = OtlpExportProtocol.HttpProtobuf;
+                    });
+                });
             });
 
             var serviceProvider = appBuilder.Services.BuildServiceProvider();
