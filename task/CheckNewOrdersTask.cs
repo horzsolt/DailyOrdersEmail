@@ -48,12 +48,12 @@ namespace OrderEmail.task
 
             log.LogDebug($"Connection string: {connectionString}");
 
-            Configuration config = new Configuration();
-            config.TestMode = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VIR_TEST_MODE"));
-
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
+
+                Configuration config = Util.LoadConfiguration(connection);
+                log.LogDebug($"Test mode: {config.TestMode}");
 
                 string query = "SELECT TOP 1 * FROM dbo.DailyOrderMailConfig";
 
@@ -107,7 +107,6 @@ namespace OrderEmail.task
                         log.LogDebug($"lastCheckedTimestamp: {lastCheckedTimestamp}");
                     }
                 }
-                log.LogDebug("----------------------------------------1 --------------------------------------");
 
                 if (lastCheckedTimestamp.HasValue)
                 {
@@ -127,7 +126,6 @@ namespace OrderEmail.task
                     log.LogInformation("As no new orders found the last_check value has not been changed.");
                 }
 
-                log.LogDebug("---------------------------------------- 2 --------------------------------------");
                 Util.RemoveOldFiles();
             }
         }

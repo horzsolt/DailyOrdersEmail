@@ -47,12 +47,12 @@ namespace OrderEmail.task
 
             log.LogDebug($"Connection string: {connectionString}");
 
-            Configuration config = new Configuration();
-            config.TestMode = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VIR_TEST_MODE"));
-
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
+
+                Configuration config = Util.LoadConfiguration(connection);
+                log.LogDebug($"Test mode: {config.TestMode}");
 
                 string query = "SELECT TOP 1 * FROM dbo.DailyOrderMailConfig";
 

@@ -36,6 +36,10 @@ namespace DailyOrdersEmail
                 });
             }
 
+            string otelEndpoint =
+                Environment.GetEnvironmentVariable("OTEL_ENDPOINT")
+                ?? "http://localhost:4318";
+
             appBuilder.Services.AddOpenTelemetry()
                 .WithTracing(builder =>
                 {
@@ -46,7 +50,7 @@ namespace DailyOrdersEmail
                             serviceVersion: serviceVersion))
                         .AddOtlpExporter(o =>
                         {
-                            o.Endpoint = new Uri("http://172.26.0.1:4318/v1/traces");
+                            o.Endpoint = new Uri($"{otelEndpoint}/v1/traces");
                             o.Protocol = OtlpExportProtocol.HttpProtobuf;
                         });
                 })
@@ -60,7 +64,7 @@ namespace DailyOrdersEmail
                         .AddRuntimeInstrumentation()
                         .AddOtlpExporter(o =>
                         {
-                            o.Endpoint = new Uri("http://172.26.0.1:4318/v1/metrics");
+                            o.Endpoint = new Uri($"{otelEndpoint}/v1/metrics");
                             o.Protocol = OtlpExportProtocol.HttpProtobuf;
                         });
                 });
@@ -81,7 +85,7 @@ namespace DailyOrdersEmail
 
                     options.AddOtlpExporter(o =>
                     {
-                        o.Endpoint = new Uri("http://172.26.0.1:4318/v1/logs");
+                        o.Endpoint = new Uri($"{otelEndpoint}/v1/logs");
                         o.Protocol = OtlpExportProtocol.HttpProtobuf;
                     });
                 });

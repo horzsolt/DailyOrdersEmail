@@ -82,7 +82,11 @@ namespace OrderEmail.util
         public static Configuration LoadConfiguration(SqlConnection connection)
         {
             Configuration config = new Configuration();
-            config.TestMode = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VIR_TEST_MODE"));
+            config.TestMode =
+                bool.TryParse(
+                    Environment.GetEnvironmentVariable("VIR_TEST_MODE"),
+                    out bool testMode)
+                && testMode;
 
             string query = "SELECT TOP 1 * FROM dbo.DailyOrderMailConfig";
 

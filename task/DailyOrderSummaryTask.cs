@@ -54,6 +54,7 @@ namespace OrderEmail.task
                 try
                 {
                     config = Util.LoadConfiguration(connection);
+                    log.LogDebug($"Test mode: {config.TestMode}");
                 }
                 catch (Exception ex)
                 {
