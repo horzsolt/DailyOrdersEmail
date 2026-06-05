@@ -47,16 +47,39 @@ namespace OrderEmail.service
             return nextRun;
         }
 
+        private static DateTime GetNextRunAfterExecution(DateTime now, DayOfWeek runDay, TimeSpan runTime)
+        {
+            int daysUntilRun =
+                ((int)runDay - (int)now.DayOfWeek + 7) % 7;
+
+            DateTime nextRun = now.Date
+                .AddDays(daysUntilRun)
+                .Add(runTime);
+
+            // Task already ran for this week's slot — never re-schedule the same day.
+            if (daysUntilRun == 0)
+            {
+                nextRun = nextRun.AddDays(7);
+            }
+
+            return nextRun;
+        }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             log.LogInformation("WeeklyTurnoverMailSenderService started.");
+
+            var scheduleAfterExecution = false;
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     DateTime now = DateTime.Now;
-                    DateTime nextRun = GetNextRun(now, RunDay, RunTime);
+                    DateTime nextRun = scheduleAfterExecution
+                        ? GetNextRunAfterExecution(now, RunDay, RunTime)
+                        : GetNextRun(now, RunDay, RunTime);
+                    scheduleAfterExecution = false;
 
                     TimeSpan delay = nextRun - now;
 
@@ -71,6 +94,7 @@ namespace OrderEmail.service
                         break;
 
                     await ExecuteServiceTasks(stoppingToken);
+                    scheduleAfterExecution = true;
                 }
                 catch (TaskCanceledException)
                 {

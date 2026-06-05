@@ -1,5 +1,7 @@
 @echo off
+for /f %%a in ('docker network inspect nat --format "{{(index .IPAM.Config 0).Gateway}}"') do set DOCKER_GATEWAY=%%a
 
+echo %DOCKER_GATEWAY%
 docker pull horzsolt/dailyordersemail:latest
 
 docker rm -f dailyordersemail 2>nul
@@ -23,6 +25,8 @@ docker run -d ^
   -e VIR_PATIKAMAN_LOGINURL="%VIR_PATIKAMAN_LOGINURL%" ^
   -e VIR_PATIKAMAN_PWD="%VIR_PATIKAMAN_PWD%" ^
   -e VIR_PATIKAMAN_USERNAME="%VIR_PATIKAMAN_USERNAME%" ^
+  -e VIR_TEST_MODE=FALSE ^
   -e TZ=Europe/Budapest ^
+  -e OTEL_ENDPOINT=http://%DOCKER_GATEWAY%:4318 ^
   -v C:\VIR\DailyMailSender\logs:C:\app\logs ^
   horzsolt/dailyordersemail:latest

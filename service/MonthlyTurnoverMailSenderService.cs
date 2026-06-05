@@ -80,6 +80,52 @@ namespace OrderEmail.service
             return candidate;
         }
 
+        private static DateTime GetNextRunAfterExecution(DateTime now)
+        {
+            if (OverrideRunDay.HasValue && OverrideRunTime.HasValue)
+            {
+                return GetNextTestRunAfterExecution(
+                    now,
+                    OverrideRunDay.Value,
+                    OverrideRunTime.Value);
+            }
+
+            return GetNextMonthlyRunAfterExecution(now);
+        }
+
+        private static DateTime GetNextTestRunAfterExecution(
+            DateTime now,
+            DayOfWeek runDay,
+            TimeSpan runTime)
+        {
+            int daysUntilRun =
+                ((int)runDay - (int)now.DayOfWeek + 7) % 7;
+
+            DateTime nextRun = now.Date
+                .AddDays(daysUntilRun)
+                .Add(runTime);
+
+            if (daysUntilRun == 0)
+            {
+                nextRun = nextRun.AddDays(7);
+            }
+
+            return nextRun;
+        }
+
+        private static DateTime GetNextMonthlyRunAfterExecution(DateTime now)
+        {
+            DateTime candidate = GetAdjustedMonthEnd(now.Year, now.Month);
+
+            if (now.Date == candidate.Date && now <= candidate)
+            {
+                DateTime nextMonth = new DateTime(now.Year, now.Month, 1).AddMonths(1);
+                return GetAdjustedMonthEnd(nextMonth.Year, nextMonth.Month);
+            }
+
+            return GetNextMonthlyRun(now);
+        }
+
         private static DateTime GetAdjustedMonthEnd(int year, int month)
         {
             DateTime lastDay = new DateTime(
@@ -99,12 +145,17 @@ namespace OrderEmail.service
         {
             log.LogInformation("MonthlyTurnoverMailSenderService started.");
 
+            var scheduleAfterExecution = false;
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     DateTime now = DateTime.Now;
-                    DateTime nextRun = GetNextRun(now);
+                    DateTime nextRun = scheduleAfterExecution
+                        ? GetNextRunAfterExecution(now)
+                        : GetNextRun(now);
+                    scheduleAfterExecution = false;
 
                     TimeSpan delay = nextRun - now;
 
@@ -119,6 +170,7 @@ namespace OrderEmail.service
                         break;
 
                     await ExecuteServiceTasks(stoppingToken);
+                    scheduleAfterExecution = true;
                 }
                 catch (TaskCanceledException)
                 {
