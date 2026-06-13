@@ -17,6 +17,8 @@ using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.NetworkInformation;
 using System.Reflection;
 
 namespace DailyOrdersEmail
@@ -36,9 +38,7 @@ namespace DailyOrdersEmail
                 });
             }
 
-            string otelEndpoint =
-                Environment.GetEnvironmentVariable("OTEL_ENDPOINT")
-                ?? "http://localhost:4318";
+            string otelEndpoint = ResolveOtelEndpoint();
 
             appBuilder.Services.AddOpenTelemetry()
                 .WithTracing(builder =>
@@ -254,6 +254,36 @@ namespace DailyOrdersEmail
             }
 
             serviceProvider.Dispose();
+        }
+
+        static string ResolveOtelEndpoint()
+        {
+            string? endpoint = Environment.GetEnvironmentVariable("OTEL_ENDPOINT");
+            string port = Environment.GetEnvironmentVariable("OTEL_PORT") ?? "4318";
+
+            if (!string.IsNullOrWhiteSpace(endpoint) &&
+                !endpoint.Equals("auto", StringComparison.OrdinalIgnoreCase))
+            {
+                return endpoint;
+            }
+
+            if (OperatingSystem.IsWindows())
+            {
+                foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni.OperationalStatus != OperationalStatus.Up)
+                        continue;
+
+                    IPAddress? gateway = ni.GetIPProperties().GatewayAddresses
+                        .Select(g => g.Address)
+                        .FirstOrDefault(a => a != null && !IPAddress.IsLoopback(a) && !a.Equals(IPAddress.Any));
+
+                    if (gateway != null)
+                        return $"http://{gateway}:{port}";
+                }
+            }
+
+            return $"http://localhost:{port}";
         }
     }
 }

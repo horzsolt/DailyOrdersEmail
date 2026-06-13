@@ -23,6 +23,7 @@ RUN dotnet publish "./OrderEmail.csproj" -c %BUILD_CONFIGURATION% -o /app/publis
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-
-ENTRYPOINT ["dotnet", "DailyOrdersEmail.dll"]
+COPY entrypoint.ps1 .
+ENTRYPOINT ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\app\\entrypoint.ps1"]
 ENV TZ=Europe/Budapest
+ENV OTEL_ENDPOINT=auto
