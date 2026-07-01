@@ -1,4 +1,4 @@
-﻿using OrderEmail.util;
+using OrderEmail.util;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using OrderEmail.service;
@@ -11,11 +11,13 @@ using System.Text;
 namespace OrderEmail.task
 {
     [DailyOrderSummaryTask]
-    public class DailyOrderSummaryTask(MetricService metricService, ILogger<DailyOrderSummaryTask> log) : ServiceTask
+    public class DailyProductOrderSummaryTask(MetricService metricService, ILogger<DailyProductOrderSummaryTask> log) : ServiceTask
     {
+        private static readonly CultureInfo HuCulture = new CultureInfo("hu-HU");
+
         public void ExecuteTask()
         {
-            log.LogInformation("5pm email sender scheduled run started.");
+            log.LogInformation("Daily product turnover email scheduled run started.");
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
@@ -25,14 +27,14 @@ namespace OrderEmail.task
             }
             catch (Exception ex)
             {
-                metricService.DailyOrderSummaryJobExecutionStatus = 0;
+                metricService.DailyProductOrderSummaryJobExecutionStatus = 0;
                 log.LogError($"Error: {ex}");
             }
 
             log.LogInformation("Scheduled run finished.");
             stopwatch.Stop();
-            metricService.DailyOrderSummaryJobExecutionStatus = 1;
-            metricService.RecordDailyOrderSummaryJobExecutionDuration(Convert.ToInt32(stopwatch.Elapsed.TotalSeconds));
+            metricService.DailyProductOrderSummaryJobExecutionStatus = 1;
+            metricService.RecordDailyProductOrderSummaryJobExecutionDuration(Convert.ToInt32(stopwatch.Elapsed.TotalSeconds));
             log.LogInformation($"Elapsed Time: {stopwatch.Elapsed.Hours} hours, {stopwatch.Elapsed.Minutes} minutes, {stopwatch.Elapsed.Seconds} seconds");
         }
 
@@ -58,18 +60,17 @@ namespace OrderEmail.task
                 }
                 catch (Exception ex)
                 {
-                    metricService.DailyOrderSummaryJobExecutionStatus = 0;
-                    log.LogError(ex, "Failed to load configuration (daily).");
+                    metricService.DailyProductOrderSummaryJobExecutionStatus = 0;
+                    log.LogError(ex, "Failed to load configuration (daily product).");
                     return;
                 }
 
                 DateTime queryDate = DateTime.Today;
-                // queryDate = new DateTime(2025, 10, 17);
 
                 string query = @"
-            SELECT 
-                PARTNER_NEV,
-                PARTNER_HELYSEG,
+            SELECT
+                TERMEK_NEV,
+                SUM(MENNYISEG) AS MENNYISEG,
                 SUM(ARBEVETEL_NFT) AS ARBEVETEL_NFT
             FROM [dbo].[v_qad_arbevetel_union] WITH (NOLOCK)
             WHERE
@@ -77,8 +78,7 @@ namespace OrderEmail.task
                 AND ERT_TIPUS = 'Termék'
                 AND BIZONYLAT_DATUM = @BizDatum
             GROUP BY
-                PARTNER_NEV,
-                PARTNER_HELYSEG
+                TERMEK_NEV
             ORDER BY
                 SUM(ARBEVETEL_NFT) DESC;";
 
@@ -100,8 +100,8 @@ namespace OrderEmail.task
                 }
                 catch (Exception ex)
                 {
-                    metricService.DailyOrderSummaryJobExecutionStatus = 0;
-                    log.LogError(ex, "Failed to retrieve daily data after retries.");
+                    metricService.DailyProductOrderSummaryJobExecutionStatus = 0;
+                    log.LogError(ex, "Failed to retrieve daily product data after retries.");
                     return;
                 }
 
@@ -121,40 +121,41 @@ namespace OrderEmail.task
 
             StringBuilder htmlBuilder = new StringBuilder();
             AddHeader(htmlBuilder);
+
             int orderCounter = 0;
-            double overall_Turnover = 0;
+            double overallQuantity = 0;
+            double overallTurnover = 0;
 
             foreach (DataRow row in dataTable.Rows)
             {
                 orderCounter++;
-                overall_Turnover += Convert.ToDouble(row["ARBEVETEL_NFT"]);
-                int index = dataTable.Rows.IndexOf(row);
-                log.LogDebug($"{index.ToString()}/{dataTable.Rows.Count}");
+                overallQuantity += Convert.ToDouble(row["MENNYISEG"]);
+                overallTurnover += Convert.ToDouble(row["ARBEVETEL_NFT"]);
                 AddRow(htmlBuilder, row);
             }
 
-            AddSummary(overall_Turnover, htmlBuilder);
+            AddSummary(overallQuantity, overallTurnover, htmlBuilder);
             AddFooter(htmlBuilder);
 
-            string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
-            string subject = $"Napvégi Partner árbevétel QAD";
+            string subject = "Napvégi Termék árbevétel QAD";
 
-            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overall_Turnover));
+            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overallTurnover));
 
-            metricService.DailyOrderSum = overall_Turnover;
-            metricService.DailyOrderCount = orderCounter;
+            metricService.DailyProductOrderSum = overallTurnover;
+            metricService.DailyProductOrderCount = orderCounter;
 
-            log.LogDebug($"Reporting metrics, orderSum: {overall_Turnover}, orderCount: {orderCounter}.");
+            log.LogDebug($"Reporting metrics, productSum: {overallTurnover}, productQuantity: {overallQuantity}, productCount: {orderCounter}.");
         }
 
-        private static void AddSummary(double sum_Turnover, StringBuilder htmlBuilder)
+        private static void AddSummary(double sumQuantity, double sumTurnover, StringBuilder htmlBuilder)
         {
-            string strTurnOver = Math.Round(sum_Turnover).ToString("N0", new CultureInfo("hu-HU"));
+            string strQuantity = Math.Round(sumQuantity).ToString("N0", HuCulture);
+            string strTurnover = Math.Round(sumTurnover).ToString("N0", HuCulture);
 
             htmlBuilder.Append($"<tr class='lowertabletr'>");
             htmlBuilder.Append($"<td align='center'><b>Σ</b></td>");
-            htmlBuilder.Append($"<td></td>");
-            htmlBuilder.Append($"<td align='right'><b>{strTurnOver} Ft</b></td>");
+            htmlBuilder.Append($"<td align='right'><b>{strQuantity}</b></td>");
+            htmlBuilder.Append($"<td align='right'><b>{strTurnover} Ft</b></td>");
             htmlBuilder.Append("</tr>");
             htmlBuilder.Append("</table>");
         }
@@ -171,7 +172,6 @@ namespace OrderEmail.task
 
         private void AddHeader(StringBuilder htmlBuilder)
         {
-
             htmlBuilder.Append("<!DOCTYPE html>");
             htmlBuilder.Append("<html>");
 
@@ -189,20 +189,21 @@ namespace OrderEmail.task
             htmlBuilder.Append($"<table class='uppertable'>");
 
             htmlBuilder.Append("<tr height='20px'>");
-            htmlBuilder.Append($"<td class='simpletd'>Név</td>");
-            htmlBuilder.Append($"<td class='simpletd'>Helység</td>");
+            htmlBuilder.Append($"<td class='simpletd'>Termék</td>");
+            htmlBuilder.Append($"<td align='right' class='simpletd'>Mennyiség</td>");
             htmlBuilder.Append($"<td align='right' class='simpletd'>Árbevétel</td>");
             htmlBuilder.Append("</tr>");
         }
 
         private void AddRow(StringBuilder htmlBuilder, DataRow row)
         {
-            string strTurnOver = Math.Round(row.Field<decimal>("ARBEVETEL_NFT")).ToString("N0", new CultureInfo("hu-HU"));
+            string strQuantity = Math.Round(row.Field<decimal>("MENNYISEG")).ToString("N0", HuCulture);
+            string strTurnover = Math.Round(row.Field<decimal>("ARBEVETEL_NFT")).ToString("N0", HuCulture);
 
             htmlBuilder.Append("<tr height='20px'>");
-            htmlBuilder.Append($"<td>{row.Field<string>("PARTNER_NEV")}</td>");
-            htmlBuilder.Append($"<td class='simpletd'>{row.Field<string>("PARTNER_HELYSEG")}</td>");
-            htmlBuilder.Append($"<td  align='right' class='simpletd'>{strTurnOver} Ft</td>");
+            htmlBuilder.Append($"<td>{row.Field<string>("TERMEK_NEV")}</td>");
+            htmlBuilder.Append($"<td align='right' class='simpletd'>{strQuantity}</td>");
+            htmlBuilder.Append($"<td align='right' class='simpletd'>{strTurnover} Ft</td>");
             htmlBuilder.Append("</tr>");
         }
     }

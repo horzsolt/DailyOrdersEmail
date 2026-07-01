@@ -152,7 +152,7 @@ namespace OrderEmail.task
             AddSummary(overall_Turnover, htmlBuilder);
             AddFooter(htmlBuilder);
 
-            string subject = $"Hétvégi árbevétel értesítő ({weekStartDate} – {weekEndDate})";
+            string subject = $"Hétvégi Partner árbevétel QAD ({weekStartDate} – {weekEndDate})";
 
             string timeStamp = Util.RemoveSpecialCharsFromDateTime(DateTime.Now);
 

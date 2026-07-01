@@ -10,25 +10,39 @@ namespace OrderEmail.service
         private readonly Meter meter;
         private readonly Histogram<int> taskExecutionDuration;
         private readonly Histogram<int> dailyOrderSummaryTaskExecutionDuration;
+        private readonly Histogram<int> dailyProductOrderSummaryTaskExecutionDuration;
         private readonly Histogram<int> dailyScriptorOrderSummaryTaskExecutionDuration;
         private readonly Histogram<int> weeklyOrderSummaryTaskExecutionDuration;
+        private readonly Histogram<int> weeklyProductOrderSummaryTaskExecutionDuration;
         private readonly Histogram<int> monthlyOrderSummaryTaskExecutionDuration;
+        private readonly Histogram<int> monthlyProductOrderSummaryTaskExecutionDuration;
         private int jobExecutionStatus;
         private int dailyOrderSummaryJobExecutionStatus;
+        private int dailyProductOrderSummaryJobExecutionStatus;
         private int dailyScriptorOrderSummaryJobExecutionStatus;
         private int weeklyOrderSummaryJobExecutionStatus;
+        private int weeklyProductOrderSummaryJobExecutionStatus;
         private long weeklyOrderLastSuccessTimestamp;
+        private long weeklyProductOrderLastSuccessTimestamp;
         private long monthlyOrderLastSuccessTimestamp;
+        private long monthlyProductOrderLastSuccessTimestamp;
         private int monthlyOrderSummaryJobExecutionStatus;
+        private int monthlyProductOrderSummaryJobExecutionStatus;
         private int weeklyScriptorOrderSummaryJobExecutionStatus;
         private int orderCount;
         private double orderSum;
         private int daily_orderCount;
         private double daily_orderSum;
+        private int daily_productOrderCount;
+        private double daily_productOrderSum;
         private int weekly_orderCount;
+        private int weekly_productOrderCount;
         private int monthly_orderCount;
+        private int monthly_productOrderCount;
         private double weekly_orderSum;
+        private double weekly_productOrderSum;
         private double monthly_orderSum;
+        private double monthly_productOrderSum;
         private readonly ILogger<MetricService> log;
 
         public int DailyScriptorOrderSummaryJobExecutionStatus
@@ -52,6 +66,18 @@ namespace OrderEmail.service
             set
             {
                 dailyOrderSummaryJobExecutionStatus = value;
+            }
+        }
+
+        public int DailyProductOrderSummaryJobExecutionStatus
+        {
+            get
+            {
+                return dailyProductOrderSummaryJobExecutionStatus;
+            }
+            set
+            {
+                dailyProductOrderSummaryJobExecutionStatus = value;
             }
         }
 
@@ -79,6 +105,18 @@ namespace OrderEmail.service
             }
         }
 
+        public int WeeklyProductOrderSummaryJobExecutionStatus
+        {
+            get
+            {
+                return weeklyProductOrderSummaryJobExecutionStatus;
+            }
+            set
+            {
+                weeklyProductOrderSummaryJobExecutionStatus = value;
+            }
+        }
+
         public void MarkWeeklyOrderSummaryJobSuccess()
         {
             weeklyOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -86,6 +124,16 @@ namespace OrderEmail.service
             log.LogInformation(
                 "Weekly order summary job succeeded at {Timestamp}",
                 weeklyOrderLastSuccessTimestamp
+            );
+        }
+
+        public void MarkWeeklyProductOrderSummaryJobSuccess()
+        {
+            weeklyProductOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            log.LogInformation(
+                "Weekly product order summary job succeeded at {Timestamp}",
+                weeklyProductOrderLastSuccessTimestamp
             );
         }
 
@@ -123,6 +171,16 @@ namespace OrderEmail.service
             );
         }
 
+        public void MarkMonthlyProductOrderSummaryJobSuccess()
+        {
+            monthlyProductOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            log.LogInformation(
+                "Monthly product order summary job succeeded at {Timestamp}",
+                monthlyProductOrderLastSuccessTimestamp
+            );
+        }
+
         public int MonthlyOrderSummaryJobExecutionStatus
         {
             get
@@ -132,6 +190,18 @@ namespace OrderEmail.service
             set
             {
                 monthlyOrderSummaryJobExecutionStatus = value;
+            }
+        }
+
+        public int MonthlyProductOrderSummaryJobExecutionStatus
+        {
+            get
+            {
+                return monthlyProductOrderSummaryJobExecutionStatus;
+            }
+            set
+            {
+                monthlyProductOrderSummaryJobExecutionStatus = value;
             }
         }
 
@@ -195,6 +265,30 @@ namespace OrderEmail.service
             }
         }
 
+        public int DailyProductOrderCount
+        {
+            get
+            {
+                return daily_productOrderCount;
+            }
+            set
+            {
+                daily_productOrderCount = value;
+            }
+        }
+
+        public double DailyProductOrderSum
+        {
+            get
+            {
+                return daily_productOrderSum;
+            }
+            set
+            {
+                daily_productOrderSum = value;
+            }
+        }
+
         public int WeeklyOrderCount
         {
             get
@@ -204,6 +298,18 @@ namespace OrderEmail.service
             set
             {
                 weekly_orderCount = value;
+            }
+        }
+
+        public int WeeklyProductOrderCount
+        {
+            get
+            {
+                return weekly_productOrderCount;
+            }
+            set
+            {
+                weekly_productOrderCount = value;
             }
         }
 
@@ -219,6 +325,18 @@ namespace OrderEmail.service
             }
         }
 
+        public int MonthlyProductOrderCount
+        {
+            get
+            {
+                return monthly_productOrderCount;
+            }
+            set
+            {
+                monthly_productOrderCount = value;
+            }
+        }
+
         public double WeeklyOrderSum
         {
             get
@@ -228,6 +346,18 @@ namespace OrderEmail.service
             set
             {
                 weekly_orderSum = value;
+            }
+        }
+
+        public double WeeklyProductOrderSum
+        {
+            get
+            {
+                return weekly_productOrderSum;
+            }
+            set
+            {
+                weekly_productOrderSum = value;
             }
         }
 
@@ -243,6 +373,18 @@ namespace OrderEmail.service
             }
         }
 
+        public double MonthlyProductOrderSum
+        {
+            get
+            {
+                return monthly_productOrderSum;
+            }
+            set
+            {
+                monthly_productOrderSum = value;
+            }
+        }
+
         public MetricService(IMeterFactory meterFactory, ILogger<MetricService> logger, string serviceName, string serviceVersion)
         {
             JobExecutionStatus = 1;
@@ -250,14 +392,24 @@ namespace OrderEmail.service
             OrderSum = 0;
             DailyOrderCount = 0;
             DailyOrderSum = 0;
+            DailyProductOrderCount = 0;
+            DailyProductOrderSum = 0;
             WeeklyOrderCount = 0;
             WeeklyOrderSum = 0;
+            WeeklyProductOrderCount = 0;
+            WeeklyProductOrderSum = 0;
             MonthlyOrderCount = 0;
             MonthlyOrderSum = 0;
+            MonthlyProductOrderCount = 0;
+            MonthlyProductOrderSum = 0;
             WeeklyOrderSummaryJobExecutionStatus = 0;
+            WeeklyProductOrderSummaryJobExecutionStatus = 0;
             MonthlyOrderSummaryJobExecutionStatus = 0;
+            MonthlyProductOrderSummaryJobExecutionStatus = 0;
             weeklyOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            weeklyProductOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             monthlyOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            monthlyProductOrderLastSuccessTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             log = logger;
             meter = meterFactory.Create(serviceName, serviceVersion);
@@ -270,13 +422,25 @@ namespace OrderEmail.service
               name: "5pm_dailyturnover_job_execution_duration", unit: "seconds",
               description: "5pm daily turnover job execution duration in seconds.");
 
+            dailyProductOrderSummaryTaskExecutionDuration = meter.CreateHistogram<int>(
+              name: "5pm_dailyproductturnover_job_execution_duration", unit: "seconds",
+              description: "5pm daily product turnover job execution duration in seconds.");
+
             weeklyOrderSummaryTaskExecutionDuration = meter.CreateHistogram<int>(
               name: "weeklyturnover_job_execution_duration", unit: "seconds",
               description: "Weekly turnover job execution duration in seconds.");
 
+            weeklyProductOrderSummaryTaskExecutionDuration = meter.CreateHistogram<int>(
+              name: "weeklyproductturnover_job_execution_duration", unit: "seconds",
+              description: "Weekly product turnover job execution duration in seconds.");
+
             monthlyOrderSummaryTaskExecutionDuration = meter.CreateHistogram<int>(
               name: "monthlyturnover_job_execution_duration", unit: "seconds",
               description: "Monthly turnover job execution duration in seconds.");
+
+            monthlyProductOrderSummaryTaskExecutionDuration = meter.CreateHistogram<int>(
+              name: "monthlyproductturnover_job_execution_duration", unit: "seconds",
+              description: "Monthly product turnover job execution duration in seconds.");
 
             dailyScriptorOrderSummaryTaskExecutionDuration = meter.CreateHistogram<int>(
               name: "5pm_daily_scriptor_turnover_job_execution_duration", unit: "seconds",
@@ -292,11 +456,27 @@ namespace OrderEmail.service
             );
 
             meter.CreateObservableGauge(
+                name: "dailyproductordersummary_job_execution_status",
+                unit: "value",
+                observeValue: () => new Measurement<int>(DailyProductOrderSummaryJobExecutionStatus),
+                description:
+                "The result code of the latest daily product summary order checker job execution (0 = Failed, 1 = Succeeded)"
+            );
+
+            meter.CreateObservableGauge(
                 name: "weeklyordersummary_job_execution_status",
                 unit: "value",
                 observeValue: () => new Measurement<int>(WeeklyOrderSummaryJobExecutionStatus),
                 description:
                 "The result code of the latest weekly summary order checker job execution (0 = Failed, 1 = Succeeded)"
+            );
+
+            meter.CreateObservableGauge(
+                name: "weeklyproductordersummary_job_execution_status",
+                unit: "value",
+                observeValue: () => new Measurement<int>(WeeklyProductOrderSummaryJobExecutionStatus),
+                description:
+                "The result code of the latest weekly product summary order checker job execution (0 = Failed, 1 = Succeeded)"
             );
 
             meter.CreateObservableGauge(
@@ -307,10 +487,24 @@ namespace OrderEmail.service
             );
 
             meter.CreateObservableGauge(
+                name: "weeklyproductorder_last_success_timestamp_seconds",
+                unit: "seconds",
+                observeValue: () => new Measurement<long>(weeklyProductOrderLastSuccessTimestamp),
+                description: "Unix timestamp (seconds) of the last successful weekly product order summary job execution."
+            );
+
+            meter.CreateObservableGauge(
                 name: "monthlyorder_last_success_timestamp_seconds",
                 unit: "seconds",
                 observeValue: () => new Measurement<long>(monthlyOrderLastSuccessTimestamp),
                 description: "Unix timestamp (seconds) of the last successful monthly order summary job execution."
+            );
+
+            meter.CreateObservableGauge(
+                name: "monthlyproductorder_last_success_timestamp_seconds",
+                unit: "seconds",
+                observeValue: () => new Measurement<long>(monthlyProductOrderLastSuccessTimestamp),
+                description: "Unix timestamp (seconds) of the last successful monthly product order summary job execution."
             );
 
             meter.CreateObservableGauge(
@@ -319,6 +513,14 @@ namespace OrderEmail.service
                 observeValue: () => new Measurement<int>(MonthlyOrderSummaryJobExecutionStatus),
                 description:
                 "The result code of the latest monthly summary order checker job execution (0 = Failed, 1 = Succeeded)"
+            );
+
+            meter.CreateObservableGauge(
+                name: "monthlyproductordersummary_job_execution_status",
+                unit: "value",
+                observeValue: () => new Measurement<int>(MonthlyProductOrderSummaryJobExecutionStatus),
+                description:
+                "The result code of the latest monthly product summary order checker job execution (0 = Failed, 1 = Succeeded)"
             );
 
             meter.CreateObservableGauge(
@@ -352,10 +554,24 @@ namespace OrderEmail.service
             );
 
             meter.CreateObservableGauge(
+                name: "weeklyproductorder_count",
+                unit: "orders",
+                observeValue: () => new Measurement<int>(WeeklyProductOrderCount),
+                description: "Weekly product order count."
+            );
+
+            meter.CreateObservableGauge(
                 name: "monthlyorder_count",
                 unit: "orders",
                 observeValue: () => new Measurement<int>(MonthlyOrderCount),
                 description: "Monthly order count."
+            );
+
+            meter.CreateObservableGauge(
+                name: "monthlyproductorder_count",
+                unit: "orders",
+                observeValue: () => new Measurement<int>(MonthlyProductOrderCount),
+                description: "Monthly product order count."
             );
 
             meter.CreateObservableGauge(
@@ -373,10 +589,24 @@ namespace OrderEmail.service
             );
 
             meter.CreateObservableGauge(
+                name: "weeklyproductorder_sum",
+                unit: "money",
+                observeValue: () => new Measurement<double>(WeeklyProductOrderSum),
+                description: "Weekly product order summary value."
+            );
+
+            meter.CreateObservableGauge(
                 name: "monthlyorder_sum",
                 unit: "money",
                 observeValue: () => new Measurement<double>(MonthlyOrderSum),
                 description: "Monthly order summary value."
+            );
+
+            meter.CreateObservableGauge(
+                name: "monthlyproductorder_sum",
+                unit: "money",
+                observeValue: () => new Measurement<double>(MonthlyProductOrderSum),
+                description: "Monthly product order summary value."
             );
 
             meter.CreateObservableGauge(
@@ -392,6 +622,20 @@ namespace OrderEmail.service
                 observeValue: () => new Measurement<double>(DailyOrderSum),
                 description: "5pm daily order summary value."
             );
+
+            meter.CreateObservableGauge(
+                name: "5pm_dailyproductorder_count",
+                unit: "orders",
+                observeValue: () => new Measurement<int>(DailyProductOrderCount),
+                description: "5pm daily product order count."
+            );
+
+            meter.CreateObservableGauge(
+                name: "5pm_dailyproductorder_sum",
+                unit: "money",
+                observeValue: () => new Measurement<double>(DailyProductOrderSum),
+                description: "5pm daily product order summary value."
+            );
         }
 
         public void RecordJobExecutionDuration(int duration)
@@ -406,16 +650,34 @@ namespace OrderEmail.service
             dailyOrderSummaryTaskExecutionDuration.Record(duration);
         }
 
+        public void RecordDailyProductOrderSummaryJobExecutionDuration(int duration)
+        {
+            log.LogDebug($"RecordDailyProductOrderSummaryJobExecutionDuration {duration}");
+            dailyProductOrderSummaryTaskExecutionDuration.Record(duration);
+        }
+
         public void RecordWeeklyOrderSummaryJobExecutionDuration(int duration)
         {
             log.LogDebug($"RecordWeeklyOrderSummaryJobExecutionDuration {duration}");
             weeklyOrderSummaryTaskExecutionDuration.Record(duration);
         }
 
+        public void RecordWeeklyProductOrderSummaryJobExecutionDuration(int duration)
+        {
+            log.LogDebug($"RecordWeeklyProductOrderSummaryJobExecutionDuration {duration}");
+            weeklyProductOrderSummaryTaskExecutionDuration.Record(duration);
+        }
+
         public void RecordMonthlyOrderSummaryJobExecutionDuration(int duration)
         {
             log.LogDebug($"RecordMonthlyOrderSummaryJobExecutionDuration {duration}");
             monthlyOrderSummaryTaskExecutionDuration.Record(duration);
+        }
+
+        public void RecordMonthlyProductOrderSummaryJobExecutionDuration(int duration)
+        {
+            log.LogDebug($"RecordMonthlyProductOrderSummaryJobExecutionDuration {duration}");
+            monthlyProductOrderSummaryTaskExecutionDuration.Record(duration);
         }
 
         public void RecordDailyScriptorOrderSummaryJobExecutionDuration(int duration)
