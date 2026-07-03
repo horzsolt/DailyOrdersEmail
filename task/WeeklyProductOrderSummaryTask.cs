@@ -155,7 +155,7 @@ namespace OrderEmail.task
 
             string subject = $"Hétvégi Termék árbevétel QAD ({weekStartDate} – {weekEndDate})";
 
-            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overallTurnover), "horvath.zsolt@goodwillpharma.com");
+            Util.SendEmail(htmlBuilder.ToString(), config, subject, string.Format("{0:C0}", overallTurnover));
 
             metricService.WeeklyProductOrderSum = overallTurnover;
             metricService.WeeklyProductOrderCount = orderCounter;
